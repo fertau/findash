@@ -1,8 +1,39 @@
 import { getRate, setRate } from '@/lib/db/exchange-rates';
 import type { Currency } from '@/lib/db/types';
 
-const DOLAR_API_URL = 'https://dolarapi.com/v1/dolares';
-const BCU_PROXY_URL = 'https://dolarapi.com/v1/cotizaciones/uyu';
+/**
+ * Exchange rate provider configuration.
+ * Each provider knows how to fetch a specific currency pair.
+ * Add new providers here to support additional currencies/regions.
+ */
+interface RateProvider {
+  currency: Currency;
+  url: string;
+  extractRate: (data: unknown) => number | null;
+  sourceName: string;
+}
+
+const RATE_PROVIDERS: RateProvider[] = [
+  {
+    currency: 'USD',
+    url: 'https://dolarapi.com/v1/dolares',
+    extractRate: (data) => {
+      if (!Array.isArray(data)) return null;
+      const blue = data.find((d: Record<string, unknown>) => d.casa === 'blue');
+      return blue?.venta ?? null;
+    },
+    sourceName: 'dolarapi.com',
+  },
+  {
+    currency: 'UYU',
+    url: 'https://dolarapi.com/v1/cotizaciones/uyu',
+    extractRate: (data) => {
+      const d = data as Record<string, unknown>;
+      return (d?.venta as number) ?? null;
+    },
+    sourceName: 'dolarapi.com',
+  },
+];
 
 interface FetchedRate {
   currency: Currency;
@@ -11,47 +42,30 @@ interface FetchedRate {
 }
 
 /**
- * Fetch current exchange rates from public APIs.
- * DolarAPI.com provides ARS rates (blue, MEP, oficial).
- * For UYU, uses DolarAPI's UYU endpoint.
+ * Fetch current exchange rates from configured providers.
+ * Each provider is independent — if one fails, others still work.
  */
 export async function fetchCurrentRates(): Promise<FetchedRate[]> {
   const results: FetchedRate[] = [];
 
-  // Fetch USD/ARS rates
-  try {
-    const res = await fetch(DOLAR_API_URL, { signal: AbortSignal.timeout(10000) });
-    if (res.ok) {
-      const data = await res.json();
-      // Find "blue" rate (most commonly used for real transactions)
-      const blue = data.find((d: { casa: string }) => d.casa === 'blue');
-      if (blue?.venta) {
-        results.push({
-          currency: 'USD',
-          rate: blue.venta,
-          source: 'dolarapi.com (blue)',
-        });
-      }
-    }
-  } catch {
-    // DolarAPI down, skip
-  }
+  for (const provider of RATE_PROVIDERS) {
+    try {
+      const res = await fetch(provider.url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
 
-  // Fetch UYU rate
-  try {
-    const res = await fetch(BCU_PROXY_URL, { signal: AbortSignal.timeout(10000) });
-    if (res.ok) {
       const data = await res.json();
-      if (data?.venta) {
+      const rate = provider.extractRate(data);
+
+      if (rate && rate > 0) {
         results.push({
-          currency: 'UYU',
-          rate: data.venta,
-          source: 'dolarapi.com (uyu)',
+          currency: provider.currency,
+          rate,
+          source: provider.sourceName,
         });
       }
+    } catch {
+      // Provider unavailable, skip
     }
-  } catch {
-    // BCU proxy down, skip
   }
 
   return results;
@@ -73,13 +87,11 @@ export async function fetchAndStoreRates(
 
   for (const rate of fetched) {
     try {
-      // Sanity check: compare with last known rate
       const existing = await getRate(householdId, rate.currency, period);
 
       if (existing) {
         const delta = Math.abs(rate.rate - existing.rate) / existing.rate;
         if (delta > 0.3) {
-          // Rate changed by more than 30%, flag for manual confirmation
           flagged.push(rate);
           continue;
         }

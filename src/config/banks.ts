@@ -11,19 +11,24 @@ export interface BankSource {
 
 /**
  * Built-in parser registry.
- * These are the parsers available in the system — not the user's banks.
- * Users configure their own sources via Settings → Cards/Sources,
- * selecting which parser to use for each one.
+ * These are the file format parsers available in the system.
+ * Users configure their own sources via Settings → Sources,
+ * selecting which parser to use for each bank/card/account.
+ *
+ * Bank-specific parsers handle known PDF/XLS layouts.
+ * Generic parsers handle CSV/XLSX with configurable column mappings.
  */
 export const AVAILABLE_PARSERS = [
+  // Generic parsers — work with any institution
   { key: 'generic_csv', label: 'CSV genérico', description: 'Archivo CSV con columnas configurables' },
   { key: 'generic_xlsx', label: 'Excel genérico', description: 'Archivo XLS/XLSX con columnas configurables' },
-  { key: 'galicia_card', label: 'Tarjeta de crédito (Galicia)', description: 'PDF de resumen de tarjeta Galicia' },
-  { key: 'galicia_bank', label: 'Cuenta bancaria (Galicia)', description: 'PDF de cuenta Galicia' },
-  { key: 'santander_card', label: 'Tarjeta de crédito (Santander)', description: 'PDF de resumen Santander' },
-  { key: 'santander_bank', label: 'Cuenta bancaria (Santander)', description: 'PDF de cuenta Santander' },
-  { key: 'itau_visa', label: 'Tarjeta Visa (Itaú)', description: 'PDF de Visa Itaú (doble columna UYU/USD)' },
-  { key: 'itau_bank', label: 'Cuenta bancaria (Itaú)', description: 'XLS de cuenta Itaú' },
+  // Bank-specific parsers — handle known PDF/XLS formats
+  { key: 'galicia_card', label: 'PDF tarjeta de crédito (formato Galicia)', description: 'Resumen PDF con formato fecha-descripción-monto' },
+  { key: 'galicia_bank', label: 'PDF cuenta bancaria (formato Galicia)', description: 'Extracto PDF de cuenta' },
+  { key: 'santander_card', label: 'PDF tarjeta de crédito (formato Santander)', description: 'Resumen PDF Visa/Amex' },
+  { key: 'santander_bank', label: 'PDF cuenta bancaria (formato Santander)', description: 'Extracto PDF de cuenta corriente' },
+  { key: 'itau_visa', label: 'PDF tarjeta Visa (formato Itaú, doble columna)', description: 'PDF con columnas separadas por moneda' },
+  { key: 'itau_bank', label: 'XLS cuenta bancaria (formato Itaú)', description: 'Planilla XLS de movimientos' },
 ] as const;
 
 /**

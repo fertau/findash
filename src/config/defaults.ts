@@ -1,18 +1,17 @@
 /**
  * Default exclusion rule patterns.
- * Seeded into each new household on creation. Fully editable via API afterward.
+ * Seeded as EXAMPLES when a household is created. Fully editable via Settings.
+ * Users should review and customize these for their specific financial institutions.
  */
-export const DEFAULT_EXCLUSION_PATTERNS = [
-  {
-    pattern: 'BALANZ|DOLAR MEP|MEP.*ARBITRAJE',
-    matchType: 'regex' as const,
-    reason: 'MEP/arbitrage operation — not an expense',
-  },
-  {
-    pattern: 'FIMA|FONDO COMUN|FCI|SUSCRIPCION.*FONDO|RESCATE.*FONDO',
-    matchType: 'regex' as const,
-    reason: 'Investment fund flow — not an expense',
-  },
+export const DEFAULT_EXCLUSION_PATTERNS: Array<{
+  pattern: string;
+  matchType: 'regex' | 'contains' | 'exact';
+  reason: string;
+}> = [
+  // No default exclusions — users configure their own via Settings → Exclusion Rules.
+  // Examples they might add:
+  // { pattern: 'INVESTMENT FUND', matchType: 'contains', reason: 'Investment flow, not expense' },
+  // { pattern: 'INTERNAL TRANSFER', matchType: 'contains', reason: 'Internal transfer between accounts' },
 ];
 
 /**

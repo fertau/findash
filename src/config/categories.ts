@@ -33,7 +33,7 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
       { id: 'cat_peajes', name: 'Peajes' },
       { id: 'cat_rideshare', name: 'Uber / Taxi' },
       { id: 'cat_estacionamiento', name: 'Estacionamiento' },
-      { id: 'cat_ferry', name: 'Ferry / Buquebus' },
+      { id: 'cat_ferry', name: 'Ferry' },
     ],
   },
   {
