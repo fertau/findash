@@ -12,7 +12,11 @@ import type { NextRequest } from 'next/server';
  * Public endpoints (no auth required):
  * - /api/health
  */
-const PUBLIC_PATHS = new Set(['/api/health']);
+const PUBLIC_PATHS = new Set([
+  '/api/health',
+  '/api/auth/session',
+  '/api/auth/login',
+]);
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
