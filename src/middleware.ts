@@ -31,16 +31,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for Authorization header
+  // Check for Authorization header OR session cookie
   const authHeader = request.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
+  const sessionCookie = request.cookies.get('__session');
+
+  if (!authHeader?.startsWith('Bearer ') && !sessionCookie?.value) {
     return NextResponse.json(
       { error: 'Authentication required' },
       { status: 401 }
     );
   }
 
-  // Header present — pass through to route handler for full verification
+  // Credentials present — pass through to route handler for full verification
   return NextResponse.next();
 }
 

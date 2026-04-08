@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyToken, getUserProfile } from './session';
+import { getAdminAuth } from '@/lib/firebase/admin';
 import { getMember } from '@/lib/db/households';
 import type { UserProfile, HouseholdMember, MemberRole } from '@/lib/db/types';
 
@@ -19,18 +20,43 @@ export async function getAuthenticatedUser(
 ): Promise<AuthenticatedUser> {
   const authHeader = request.headers.get('Authorization');
 
-  if (!authHeader?.startsWith('Bearer ')) {
+  // Try Bearer token first, then fall back to session cookie
+  let uid: string | null = null;
+
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const decoded = await verifyToken(authHeader.slice(7));
+      uid = decoded.uid;
+    } catch {
+      // Token invalid, will try cookie next
+    }
+  }
+
+  if (!uid) {
+    // Extract session cookie from Cookie header
+    const cookieHeader = request.headers.get('Cookie') || '';
+    const match = cookieHeader.match(/(?:^|;\s*)__session=([^;]+)/);
+    const sessionCookie = match?.[1];
+
+    if (sessionCookie) {
+      try {
+        const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+        uid = decoded.uid;
+      } catch {
+        // Session cookie invalid
+      }
+    }
+  }
+
+  if (!uid) {
     throw NextResponse.json(
-      { error: 'Missing or invalid Authorization header' },
+      { error: 'Authentication required' },
       { status: 401 }
     );
   }
 
-  const token = authHeader.slice(7);
-
   try {
-    const decoded = await verifyToken(token);
-    const profile = await getUserProfile(decoded.uid);
+    const profile = await getUserProfile(uid);
 
     if (!profile) {
       throw NextResponse.json(
