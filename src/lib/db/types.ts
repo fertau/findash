@@ -1,0 +1,246 @@
+// ─── Currency ────────────────────────────────────────────────────────────────
+
+export type Currency = 'ARS' | 'USD' | 'UYU';
+
+// ─── Household ───────────────────────────────────────────────────────────────
+
+export interface Household {
+  id: string;
+  name: string;
+  ownerId: string;
+  settings: HouseholdSettings;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdSettings {
+  baseCurrency: Currency;
+  fiscalYearStart: number; // month 1-12
+}
+
+// ─── Members ─────────────────────────────────────────────────────────────────
+
+export type MemberRole = 'owner' | 'member';
+
+export interface HouseholdMember {
+  userId: string;
+  email: string;
+  displayName: string;
+  role: MemberRole;
+  isExcluded: boolean;
+  exclusionReason?: string;
+  canUpload: boolean;
+  canViewAll: boolean;
+  joinedAt: string;
+}
+
+// ─── Card Registry ───────────────────────────────────────────────────────────
+
+export interface CardMapping {
+  id: string;
+  sourceId: string;     // references BANK_SOURCES[].id
+  lastFour?: string;
+  memberId: string;     // userId of the cardholder
+  isAdditional: boolean;
+  isExcluded: boolean;
+  excludeBeforeDate?: string; // ISO date — exclude transactions before this date
+  notes?: string;
+}
+
+// ─── Transactions ────────────────────────────────────────────────────────────
+
+export type CategoryMatchType = 'exact' | 'contains' | 'regex' | 'keyword' | 'manual' | 'ai' | 'uncategorized';
+
+export interface Transaction {
+  id: string;
+  householdId: string;
+  date: string;                   // ISO YYYY-MM-DD
+  period: string;                 // YYYY-MM (for monthly grouping)
+  description: string;            // original from bank
+  normalizedDescription: string;  // uppercase, trimmed, no accents
+  amount: number;
+  currency: Currency;
+  categoryId: string;
+  categoryMatchType: CategoryMatchType;
+  sourceId: string;               // references BANK_SOURCES[].id
+  memberId: string;               // userId of attributed member
+  isExcluded: boolean;
+  exclusionReason?: string;
+  isExtraordinary: boolean;
+  extraordinaryNote?: string;
+  installment?: InstallmentInfo;
+  accrualGroupId?: string;
+  importBatchId: string;
+  hash: string;                   // SHA256 for dedup
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InstallmentInfo {
+  current: number;
+  total: number;
+  groupId: string;
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+export interface Category {
+  id: string;
+  name: string;
+  type: 'Fijo' | 'Variable';
+  parentId?: string;
+  icon: string;
+  color: string;
+  sortOrder: number;
+  isSystem: boolean; // system categories can't be deleted
+}
+
+// ─── Categorization Rules ────────────────────────────────────────────────────
+
+export type RuleMatchType = 'exact' | 'contains' | 'regex';
+
+export interface CategorizationRule {
+  id: string;
+  pattern: string;
+  matchType: RuleMatchType;
+  categoryId: string;
+  priority: number; // lower = higher priority
+  createdBy: string;
+  createdAt: string;
+}
+
+// ─── Exclusion Rules ─────────────────────────────────────────────────────────
+
+export interface ExclusionRule {
+  id: string;
+  pattern: string;
+  matchType: RuleMatchType;
+  reason: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+}
+
+// ─── Exchange Rates ──────────────────────────────────────────────────────────
+
+export interface ExchangeRate {
+  id: string;
+  currency: Currency;
+  period: string;         // YYYY-MM
+  rate: number;           // 1 unit of currency = rate units of base currency
+  source: 'manual' | 'api';
+  updatedAt: string;
+}
+
+// ─── Import ──────────────────────────────────────────────────────────────────
+
+export type ImportStatus = 'processing' | 'success' | 'partial' | 'error' | 'skipped';
+
+export interface ImportBatch {
+  id: string;
+  fileName: string;
+  fileHash: string;
+  sourceId: string;
+  period?: string;
+  transactionCount: number;
+  duplicatesSkipped: number;
+  status: ImportStatus;
+  notes?: string;
+  importedBy: string;
+  importedAt: string;
+}
+
+// ─── Installment Groups ─────────────────────────────────────────────────────
+
+export interface InstallmentGroup {
+  id: string;
+  baseDescription: string;
+  totalAmount: number;
+  currency: Currency;
+  installmentCount: number;
+  categoryId?: string;
+}
+
+// ─── Accrual Rules ───────────────────────────────────────────────────────────
+
+export interface AccrualRule {
+  id: string;
+  transactionId: string;
+  totalAmount: number;
+  currency: Currency;
+  months: number;
+  monthlyAmount: number;
+  startDate: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+// ─── Transfer Allocations (Member Spending) ──────────────────────────────────
+
+export interface TransferAllocation {
+  id: string;
+  transferTransactionId: string;
+  categoryId: string;
+  amount: number;
+  currency: Currency;
+  note?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+// ─── User Profile ────────────────────────────────────────────────────────────
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  householdIds: string[];
+  createdAt: string;
+}
+
+// ─── Raw parsed transaction (from Python parser) ─────────────────────────────
+
+export interface RawParsedTransaction {
+  date: string;
+  description: string;
+  amount: number;
+  currency: Currency;
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+export interface DashboardSummary {
+  period: string;
+  currency: Currency;
+  totals: {
+    expenses: number;
+    transactionCount: number;
+  };
+  byCategory: Array<{
+    categoryId: string;
+    name: string;
+    type: 'Fijo' | 'Variable';
+    amount: number;
+    percentage: number;
+    transactionCount: number;
+  }>;
+  byMember: Array<{
+    memberId: string;
+    name: string;
+    amount: number;
+    percentage: number;
+  }>;
+  fixedVsVariable: {
+    fixed: { amount: number; percentage: number };
+    variable: { amount: number; percentage: number };
+    extraordinary: { amount: number; percentage: number };
+  };
+  monthlyTrend: Array<{
+    period: string;
+    fixed: number;
+    variable: number;
+    extraordinary: number;
+    total: number;
+  }>;
+  excludedTotal: number;
+}

@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* FinDash Design Tokens — from DESIGN.md */
+@theme {
+  --color-bg-primary: #0F172A;
+  --color-bg-surface: #1E293B;
+  --color-bg-surface-hover: #334155;
+  --color-border: #334155;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+  --color-accent-positive: #22C55E;
+  --color-accent-negative: #EF4444;
+  --color-accent-warning: #F59E0B;
+  --color-accent-info: #3B82F6;
+}
+
+/* Base styles */
+html {
+  height: 100%;
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100%;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+/* Tabular numbers for financial data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

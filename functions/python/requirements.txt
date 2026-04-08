@@ -1,0 +1,6 @@
+functions-framework==3.*
+pdfplumber==0.11.*
+pandas==2.*
+openpyxl==3.*
+xlrd==2.*
+python-dateutil==2.8.*
