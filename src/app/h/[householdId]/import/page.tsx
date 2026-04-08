@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, FileText, CheckCircle, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
-import { BANK_SOURCES } from '@/config/banks';
+import { Upload, FileText, CheckCircle, AlertTriangle, XCircle, Loader2, Settings } from 'lucide-react';
+import { DEFAULT_SOURCES, AVAILABLE_PARSERS } from '@/config/banks';
+import type { BankSource } from '@/config/banks';
 import { cn } from '@/lib/cn';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 
 type ImportStatus = 'idle' | 'uploading' | 'success' | 'error';
 
@@ -34,6 +36,23 @@ export default function ImportPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [householdSources, setHouseholdSources] = useState<BankSource[]>([]);
+  const [sourcesLoaded, setSourcesLoaded] = useState(false);
+
+  // Load household-configured sources
+  useState(() => {
+    fetch(`/api/households/${householdId}/cards`)
+      .then((res) => res.ok ? res.json() : { cards: [] })
+      .then((data) => {
+        // Convert card mappings to source options if they reference parsers
+        setHouseholdSources(data.cards || []);
+        setSourcesLoaded(true);
+      })
+      .catch(() => setSourcesLoaded(true));
+  });
+
+  // Combine: household-configured sources + default generic sources
+  const availableSources = [...householdSources, ...DEFAULT_SOURCES];
 
   async function handleUpload() {
     if (!file || !sourceId) return;
@@ -130,13 +149,20 @@ export default function ImportPage() {
               onChange={(e) => setSourceId(e.target.value)}
               className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-info"
             >
-              <option value="">Seleccioná el banco y producto</option>
-              {BANK_SOURCES.map((s) => (
+              <option value="">Seleccioná el formato del archivo</option>
+              <option value="auto">Detectar automáticamente</option>
+              {availableSources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.bank} — {s.product}
                 </option>
               ))}
             </select>
+            <p className="text-xs text-text-muted mt-1">
+              ¿Necesitás más opciones?{' '}
+              <Link href={`/h/${householdId}/settings`} className="text-accent-info hover:underline">
+                Configurá tus fuentes
+              </Link>
+            </p>
           </div>
 
           {/* Upload button */}
