@@ -9,7 +9,8 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import ExcludeTransactionDialog from '@/components/ExcludeTransactionDialog';
-import type { Transaction, Currency } from '@/lib/db/types';
+import CategorizeTransactionDialog from '@/components/CategorizeTransactionDialog';
+import type { Transaction, Currency, Category } from '@/lib/db/types';
 
 function formatAmount(amount: number, currency: Currency): string {
   if (currency === 'ARS') return `ARS ${amount.toLocaleString('es-AR', { minimumFractionDigits: 0 })}`;
@@ -31,6 +32,9 @@ export default function TransactionsPage() {
 
   const [excludeDialogOpen, setExcludeDialogOpen] = useState(false);
   const [excludeTarget, setExcludeTarget] = useState<Transaction | null>(null);
+  const [categorizeDialogOpen, setCategorizeDialogOpen] = useState(false);
+  const [categorizeTarget, setCategorizeTarget] = useState<Transaction | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const period = searchParams.get('period') || '';
   const categoryId = searchParams.get('categoryId') || '';
@@ -56,6 +60,14 @@ export default function TransactionsPage() {
   }, [householdId, page, period, categoryId]);
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
+
+  // Fetch categories for the categorize dialog
+  useEffect(() => {
+    fetch(`/api/households/${householdId}/categories`)
+      .then((res) => res.ok ? res.json() : { categories: [] })
+      .then((data) => setCategories(data.categories || []))
+      .catch(() => {});
+  }, [householdId]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -100,9 +112,29 @@ export default function TransactionsPage() {
                     <TableCell className="text-muted-foreground tabular-nums">{tx.date}</TableCell>
                     <TableCell className="text-foreground truncate max-w-xs">{tx.description}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
-                        {tx.categoryId.replace('cat_', '').replace(/_/g, ' ')}
-                      </Badge>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCategorizeTarget(tx);
+                          setCategorizeDialogOpen(true);
+                        }}
+                        className="cursor-pointer"
+                        title="Cambiar categoría"
+                      >
+                        <Badge variant="secondary" className="hover:bg-muted transition-colors">
+                          {(() => {
+                            const cat = categories.find((c) => c.id === tx.categoryId);
+                            return cat ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className="inline-block size-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                                {cat.name}
+                              </span>
+                            ) : (
+                              tx.categoryId.replace('cat_', '').replace(/_/g, ' ')
+                            );
+                          })()}
+                        </Badge>
+                      </button>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-foreground">
                       {formatAmount(tx.amount, tx.currency)}
@@ -166,6 +198,14 @@ export default function TransactionsPage() {
         transaction={excludeTarget}
         householdId={householdId}
         onExcluded={() => fetchTransactions()}
+      />
+      <CategorizeTransactionDialog
+        open={categorizeDialogOpen}
+        onOpenChange={setCategorizeDialogOpen}
+        transaction={categorizeTarget}
+        categories={categories}
+        householdId={householdId}
+        onCategorized={() => fetchTransactions()}
       />
     </div>
   );

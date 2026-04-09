@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import ParserTemplatesTab from './parser-templates';
 import ExclusionRulesManager from '@/components/ExclusionRulesManager';
+import CategorizationRulesManager from '@/components/CategorizationRulesManager';
 
 type Tab = 'categories' | 'rules' | 'exclusions' | 'rates' | 'members' | 'cards' | 'parsers';
 
@@ -97,13 +98,18 @@ export default function SettingsPage() {
         <ParserTemplatesTab householdId={householdId} autoNew={autoNew} />
       )}
 
+      {/* Rules tab — full CRUD component */}
+      {activeTab === 'rules' && (
+        <CategorizationRulesManager householdId={householdId} />
+      )}
+
       {/* Exclusions tab — full CRUD component */}
       {activeTab === 'exclusions' && (
         <ExclusionRulesManager householdId={householdId} />
       )}
 
       {/* Content — other tabs */}
-      {activeTab !== 'parsers' && activeTab !== 'exclusions' && (
+      {activeTab !== 'parsers' && activeTab !== 'exclusions' && activeTab !== 'rules' && (
         <Card>
           {loading ? (
             <div className="p-8 text-center text-muted-foreground">Cargando...</div>
@@ -120,14 +126,6 @@ export default function SettingsPage() {
                       <TableHead>Nombre</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Color</TableHead>
-                    </>
-                  )}
-                  {activeTab === 'rules' && (
-                    <>
-                      <TableHead>Patrón</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Categoría</TableHead>
-                      <TableHead className="text-right">Prioridad</TableHead>
                     </>
                   )}
                   {activeTab === 'rates' && (
@@ -171,16 +169,6 @@ export default function SettingsPage() {
                           <Badge variant="secondary">{String(item.type)}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">{String(item.color)}</TableCell>
-                      </>
-                    )}
-                    {activeTab === 'rules' && (
-                      <>
-                        <TableCell className="font-mono text-xs">{String(item.pattern)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{String(item.matchType)}</Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{String(item.categoryId)}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">{String(item.priority)}</TableCell>
                       </>
                     )}
                     {activeTab === 'rates' && (
