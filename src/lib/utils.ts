@@ -39,13 +39,25 @@ export function computeTransactionHash(
  * Extract period (YYYY-MM) from a date string.
  */
 export function dateToPeriod(date: string): string {
-  // Handles YYYY-MM-DD and DD/MM/YYYY
+  // Handles YYYY-MM-DD, DD/MM/YYYY, DD/MM/YY, DD-MM-YYYY, DD-MM-YY
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return date.substring(0, 7);
   }
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-    const [dd, mm, yyyy] = date.split('/');
+    const [, mm, yyyy] = date.split('/');
     return `${yyyy}-${mm}`;
+  }
+  if (/^\d{2}\/\d{2}\/\d{2}$/.test(date)) {
+    const [, mm, yy] = date.split('/');
+    return `20${yy}-${mm}`;
+  }
+  if (/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+    const [, mm, yyyy] = date.split('-');
+    return `${yyyy}-${mm}`;
+  }
+  if (/^\d{2}-\d{2}-\d{2}$/.test(date)) {
+    const [, mm, yy] = date.split('-');
+    return `20${yy}-${mm}`;
   }
   throw new Error(`Unrecognized date format: ${date}`);
 }
