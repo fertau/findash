@@ -38,10 +38,11 @@ export async function PATCH(request: Request, { params }: Params) {
     const body = await request.json();
     const data = UpdateTransactionSchema.parse(body);
 
-    // If category is being manually set, update matchType
+    // If category is being manually set, update matchType and clear AI reason
     const updates: Record<string, unknown> = { ...data };
     if (data.categoryId) {
       updates.categoryMatchType = 'manual';
+      updates.categoryReason = null;
     }
 
     await updateTransaction(householdId, txId, updates);

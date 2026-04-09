@@ -63,7 +63,7 @@ export default async function DashboardPage({ params, searchParams }: Props) {
   // If no transactions for current period and user didn't pick one explicitly,
   // fall back to the most recent period that has data (up to 12 months back)
   if (transactions.length === 0 && !sp.period) {
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 24; i++) {
       const fallbackPeriod = shiftPeriodBack(period, i);
       const fallbackTxs = await getTransactionsForDashboard(householdId, fallbackPeriod);
       if (fallbackTxs.length > 0) {

@@ -28,7 +28,7 @@ interface AIResponseItem {
 
 const MAX_BATCH_SIZE = 50;
 const MODEL = 'claude-haiku-4-20250414';
-const MAX_TOKENS = 2048;
+const MAX_TOKENS = 4096;
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 1;
 
@@ -57,21 +57,28 @@ function buildPrompt(items: AICategorizeInput[], categories: Category[]): string
     .map((item, i) => `${i}. "${item.description}" — ${item.currency} ${item.amount}`)
     .join('\n');
 
-  return `Eres un sistema de categorización de gastos personales para una familia argentina.
+  return `Eres un sistema experto de categorización de gastos personales para una familia argentina.
+Conocés bien los comercios y servicios argentinos y latinoamericanos.
 
 Categorías disponibles:
 ${categoryList}
+
+REGLAS IMPORTANTES:
+- Sé lo más ESPECÍFICO posible. Preferí subcategorías (ej: cat_supermercado) sobre padres genéricos (ej: cat_alimentacion).
+- NUNCA uses "cat_otros" ni "cat_transferencias" a menos que realmente no encaje en ninguna otra categoría.
+- Si la descripción menciona un comercio conocido, categorizalo según su rubro principal.
+- Ejemplos argentinos: COTO/JUMBO/DISCO/DIA → cat_supermercado, YPF/SHELL/AXION → cat_combustible, RAPPI/PEDIDOSYA → cat_delivery, SPOTIFY/NETFLIX/DISNEY → cat_streaming si existe o cat_suscripciones, MERCADOPAGO/MERCADOLIBRE → depende del contexto.
 
 Transacciones a categorizar:
 ${transactionList}
 
 Para cada transacción, responde SOLO con un JSON array donde cada elemento tiene:
 - "index": número de la transacción
-- "categoryId": el ID de la categoría más apropiada
+- "categoryId": el ID de la categoría más apropiada y específica
 - "confidence": un número entre 0 y 1 indicando tu confianza
-- "reason": una explicación breve en español de por qué elegiste esa categoría (máximo 60 caracteres, ej: "Supermercado mayorista", "Plataforma de streaming", "Peaje autopista")
+- "reason": explicación breve en español (máximo 60 chars, ej: "Supermercado mayorista", "Plataforma de streaming")
 
-Si no estás seguro, usa "cat_sin_categorizar" con confidence baja.
+Si genuinamente no podés identificar la categoría, usa "cat_sin_categorizar" con confidence 0.3.
 Responde SOLO con el JSON array, sin texto adicional.`;
 }
 

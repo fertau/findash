@@ -265,37 +265,43 @@ export default function CategorizeTransactionDialog({
         {/* Category selector */}
         <div className="space-y-3">
           <label className="text-xs font-medium text-muted-foreground">
-            Nueva categoria
+            Nueva categoría
           </label>
-          <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
-            {groupedCategories.map((group) => (
-              <div key={group.label}>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
-                </span>
-                <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                  {group.items.map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedCategoryId(cat.id)}
-                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors ${
-                        selectedCategoryId === cat.id
-                          ? 'border-primary bg-primary/10 text-foreground'
-                          : 'border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                      }`}
-                    >
-                      <span
-                        className="inline-block size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: cat.color }}
-                      />
-                      <span className="truncate">{cat.name}</span>
-                    </button>
-                  ))}
+          {categories.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Cargando categorías...
+            </p>
+          ) : (
+            <div className="max-h-72 overflow-y-auto space-y-3 pr-1 border border-border rounded-lg p-3">
+              {groupedCategories.map((group) => (
+                <div key={group.label}>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </span>
+                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {group.items.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCategoryId(cat.id)}
+                        className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors ${
+                          selectedCategoryId === cat.id
+                            ? 'border-primary bg-primary/10 text-foreground'
+                            : 'border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        }`}
+                      >
+                        <span
+                          className="inline-block size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: cat.color }}
+                        />
+                        <span className="truncate">{cat.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Mode selector */}

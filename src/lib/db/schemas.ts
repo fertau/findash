@@ -59,6 +59,7 @@ export const CreateTransactionSchema = z.object({
 
 export const UpdateTransactionSchema = z.object({
   categoryId: z.string().optional(),
+  categoryReason: z.string().max(200).optional().nullable(),
   isExtraordinary: z.boolean().optional(),
   extraordinaryNote: z.string().max(500).optional(),
   isExcluded: z.boolean().optional(),
