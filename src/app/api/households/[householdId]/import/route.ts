@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: Params) {
 
     const metadata = ImportUploadSchema.parse({
       sourceId: sourceId || '',
-      memberId: memberId || user.uid,
+      memberId: (memberId && memberId !== 'self') ? memberId : user.uid,
     });
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -79,17 +79,23 @@ export async function POST(request: Request, { params }: Params) {
       }
     }
 
-    const status = result.importBatch.status === 'error' ? 500 : 200;
-    return NextResponse.json(
-      {
-        importBatchId: result.importBatch.id,
-        status: result.importBatch.status,
-        transactionsImported: result.transactionsImported,
-        duplicatesSkipped: result.duplicatesSkipped,
-        errors: result.errors,
-      },
-      { status }
-    );
+    if (result.importBatch.status === 'error') {
+      return NextResponse.json(
+        {
+          error: result.errors[0] || result.importBatch.notes || 'Error al importar',
+          errors: result.errors,
+        },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      importBatchId: result.importBatch.id,
+      status: result.importBatch.status,
+      transactionsImported: result.transactionsImported,
+      duplicatesSkipped: result.duplicatesSkipped,
+      errors: result.errors,
+    });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     const message = err instanceof Error ? err.message : 'Import failed';

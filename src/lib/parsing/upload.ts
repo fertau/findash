@@ -53,16 +53,33 @@ export async function handleFileUpload(
   });
 
   try {
-    // Step 4: Upload file to Firebase Storage
-    const storagePath = `imports/${householdId}/${importBatch.id}/${file.fileName}`;
-    const bucket = getAdminStorage().bucket();
-    const fileRef = bucket.file(storagePath);
-    await fileRef.save(file.buffer, {
-      metadata: { contentType: file.mimeType },
-    });
+    // Step 4: Upload file to Firebase Storage (non-blocking, skip on failure)
+    try {
+      const storagePath = `imports/${householdId}/${importBatch.id}/${file.fileName}`;
+      const bucket = getAdminStorage().bucket();
+      const fileRef = bucket.file(storagePath);
+      await fileRef.save(file.buffer, {
+        metadata: { contentType: file.mimeType },
+      });
+    } catch {
+      // Storage not configured or unavailable — continue without archiving
+    }
 
-    // Step 5: Parse file via Python parser service
+    // Step 5: Parse file
     const parseResult = await parseFile(file.buffer, file.fileName, sourceId);
+
+    if (parseResult.transactions.length === 0) {
+      await updateImportBatch(householdId, importBatch.id, {
+        status: 'error',
+        notes: 'No se encontraron transacciones en el archivo. Verificá que el formato sea correcto.',
+      });
+      return {
+        importBatch: { ...importBatch, status: 'error', notes: 'No se encontraron transacciones en el archivo' },
+        transactionsImported: 0,
+        duplicatesSkipped: 0,
+        errors: ['No se encontraron transacciones en el archivo'],
+      };
+    }
 
     // Step 6: Load household rules and context
     const [rules, exclusionRules, members, cardMappings] = await Promise.all([
@@ -118,7 +135,7 @@ export async function handleFileUpload(
       errors: processResult.errors,
     };
   } catch (error) {
-    // Update import batch with error status
+    // Update import batch with error status — include full context
     const message = error instanceof Error ? error.message : 'Unknown error';
     await updateImportBatch(householdId, importBatch.id, {
       status: 'error',

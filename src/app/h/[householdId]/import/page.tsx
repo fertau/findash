@@ -159,7 +159,6 @@ export default function ImportPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('sourceId', effectiveParser);
-      formData.append('memberId', 'self');
       if (detection?.institution) formData.append('institution', detection.institution);
       if (detection?.documentType) formData.append('documentType', detection.documentType);
 
@@ -279,29 +278,23 @@ export default function ImportPage() {
                     onChange={(e) => setParserOverride(e.target.value)}
                     className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-info"
                   >
-                    {/* Detected candidates (bank-specific) */}
-                    {detection.candidates
-                      .filter((c) => c.score > 0)
-                      .map((c) => (
-                        <option key={c.parserKey} value={c.parserKey}>
-                          {c.label}
-                        </option>
-                      ))}
-
                     {/* Previously used household sources */}
-                    {detection.householdSources && detection.householdSources.length > 0 &&
-                      detection.householdSources
-                        .filter((s) => !detection.candidates.some((c) => c.parserKey === s.parserKey && c.score > 0))
-                        .map((s) => (
+                    {detection.householdSources && detection.householdSources.length > 0 && (
+                      <optgroup label="Fuentes anteriores">
+                        {detection.householdSources.map((s) => (
                           <option key={`hs-${s.id}`} value={s.parserKey}>
                             {s.label}
                           </option>
-                        ))
-                    }
+                        ))}
+                      </optgroup>
+                    )}
 
-                    {/* Generic fallbacks */}
-                    <option value="generic_csv">CSV genérico</option>
-                    <option value="generic_xlsx">Excel genérico</option>
+                    {/* All available parsers */}
+                    {AVAILABLE_PARSERS.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
                   </select>
                   <button
                     onClick={() => { setParserOverride(null); setIsEditing(false); }}
