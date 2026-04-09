@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Ban } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Ban, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
@@ -35,6 +35,7 @@ export default function TransactionsPage() {
   const [categorizeDialogOpen, setCategorizeDialogOpen] = useState(false);
   const [categorizeTarget, setCategorizeTarget] = useState<Transaction | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [aiCategorizing, setAiCategorizing] = useState(false);
 
   const period = searchParams.get('period') || '';
   const categoryId = searchParams.get('categoryId') || '';
@@ -91,7 +92,33 @@ export default function TransactionsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground">Transacciones</h1>
-        <span className="text-sm text-muted-foreground">{total} resultados</span>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={aiCategorizing}
+            onClick={async () => {
+              setAiCategorizing(true);
+              try {
+                const res = await fetch(`/api/households/${householdId}/transactions/ai-categorize`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ scope: 'uncategorized' }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.categorized > 0) fetchTransactions();
+                }
+              } finally {
+                setAiCategorizing(false);
+              }
+            }}
+          >
+            {aiCategorizing ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Sparkles className="mr-1.5 size-4" />}
+            {aiCategorizing ? 'Categorizando...' : 'Categorizar con AI'}
+          </Button>
+          <span className="text-sm text-muted-foreground">{total} resultados</span>
+        </div>
       </div>
 
       <Card>
@@ -134,7 +161,7 @@ export default function TransactionsPage() {
                           setCategorizeTarget(tx);
                           setCategorizeDialogOpen(true);
                         }}
-                        className="cursor-pointer"
+                        className="cursor-pointer text-left"
                         title="Cambiar categoría"
                       >
                         <Badge variant="secondary" className="hover:bg-muted transition-colors">
@@ -144,12 +171,18 @@ export default function TransactionsPage() {
                               <span className="inline-flex items-center gap-1.5">
                                 <span className="inline-block size-2 rounded-full" style={{ backgroundColor: cat.color }} />
                                 {cat.name}
+                                {tx.categoryMatchType === 'ai' && <Sparkles className="size-3 text-amber-400" />}
                               </span>
                             ) : (
                               tx.categoryId.replace('cat_', '').replace(/_/g, ' ')
                             );
                           })()}
                         </Badge>
+                        {tx.categoryReason && (
+                          <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[200px] truncate">
+                            {tx.categoryReason}
+                          </p>
+                        )}
                       </button>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-foreground">

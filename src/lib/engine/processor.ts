@@ -2,10 +2,13 @@ import { normalizeDescription, computeTransactionHash, dateToPeriod } from '@/li
 import { checkExclusion } from './exclusions';
 import { detectInstallment } from './installment-detector';
 import { categorizeBatch } from './categorizer';
+import { aiCategorizeBatch, isAICategorizationAvailable } from './ai-categorizer';
+import type { AICategorizeInput } from './ai-categorizer';
 import { findByHash } from '@/lib/db/transactions';
 import type {
   RawParsedTransaction,
   Transaction,
+  Category,
   CategorizationRule,
   ExclusionRule,
   HouseholdMember,
@@ -21,6 +24,7 @@ export interface ProcessorContext {
   exclusionRules: ExclusionRule[];
   members: HouseholdMember[];
   cardMappings: CardMapping[];
+  categories?: Category[];  // needed for AI categorization
 }
 
 export interface ProcessResult {
@@ -111,6 +115,45 @@ export async function processTransactions(
 
   const categoryResults = categorizeBatch(descriptionsForCategorization, ctx.rules);
 
+  // Step 5.5: AI categorization for transactions that rules couldn't categorize
+  const aiReasons = new Map<number, string>();
+  if (ctx.categories && isAICategorizationAvailable()) {
+    const uncategorizedIndices: number[] = [];
+    const aiInputs: AICategorizeInput[] = [];
+
+    for (let i = 0; i < categoryResults.length; i++) {
+      if (categoryResults[i].matchType === 'uncategorized' && !exclusionResults[i].excluded) {
+        uncategorizedIndices.push(i);
+        aiInputs.push({
+          description: deduped[i].description,
+          normalizedDescription: deduped[i].normalizedDescription,
+          amount: deduped[i].amount,
+          currency: deduped[i].currency,
+        });
+      }
+    }
+
+    if (aiInputs.length > 0) {
+      try {
+        const aiResults = await aiCategorizeBatch(aiInputs, ctx.categories);
+        for (let j = 0; j < aiResults.length; j++) {
+          const idx = uncategorizedIndices[j];
+          if (aiResults[j].confidence > 0.5 && aiResults[j].categoryId !== 'cat_sin_categorizar') {
+            categoryResults[idx] = {
+              categoryId: aiResults[j].categoryId,
+              matchType: 'ai',
+            };
+            if (aiResults[j].reason) {
+              aiReasons.set(idx, aiResults[j].reason);
+            }
+          }
+        }
+      } catch (err) {
+        errors.push(`AI categorization failed: ${err}`);
+      }
+    }
+  }
+
   // Step 6: Assemble enriched transactions
   for (let i = 0; i < deduped.length; i++) {
     const raw = deduped[i];
@@ -136,6 +179,7 @@ export async function processTransactions(
       currency: raw.currency,
       categoryId: exclusion.excluded ? 'cat_sin_categorizar' : category.categoryId,
       categoryMatchType: exclusion.excluded ? 'uncategorized' : category.matchType,
+      ...(aiReasons.has(i) ? { categoryReason: aiReasons.get(i) } : {}),
       sourceId: ctx.sourceId,
       memberId: ctx.memberId,
       isExcluded: exclusion.excluded,

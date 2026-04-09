@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import { getAdminStorage } from '@/lib/firebase/admin';
 import { createImportBatch, updateImportBatch, findImportByHash } from '@/lib/db/import-log';
 import { batchCreateTransactions } from '@/lib/db/transactions';
-import { getRules, getExclusionRules } from '@/lib/db/categories';
+import { getRules, getExclusionRules, getCategories } from '@/lib/db/categories';
 import { getMembers, getCardMappings } from '@/lib/db/households';
 import { processTransactions, type ProcessorContext } from '@/lib/engine/processor';
 import { parseFile } from './parser-factory';
@@ -82,11 +82,12 @@ export async function handleFileUpload(
     }
 
     // Step 6: Load household rules and context
-    const [rules, exclusionRules, members, cardMappings] = await Promise.all([
+    const [rules, exclusionRules, members, cardMappings, categories] = await Promise.all([
       getRules(householdId),
       getExclusionRules(householdId),
       getMembers(householdId),
       getCardMappings(householdId),
+      getCategories(householdId),
     ]);
 
     const processorCtx: ProcessorContext = {
@@ -98,6 +99,7 @@ export async function handleFileUpload(
       exclusionRules,
       members,
       cardMappings,
+      categories,
     };
 
     // Step 7: Process transactions (normalize, dedup, categorize, etc.)

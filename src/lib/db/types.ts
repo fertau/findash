@@ -62,6 +62,7 @@ export interface Transaction {
   currency: Currency;
   categoryId: string;
   categoryMatchType: CategoryMatchType;
+  categoryReason?: string;        // AI explanation for the categorization
   sourceId: string;               // references BANK_SOURCES[].id
   memberId: string;               // userId of attributed member
   isExcluded: boolean;
