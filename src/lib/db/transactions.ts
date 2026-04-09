@@ -103,24 +103,23 @@ export async function listTransactions(
   if (filters.currency) {
     query = query.where('currency', '==', filters.currency);
   }
+  // isExcluded and isExtraordinary filtered in memory to avoid composite index requirements
+  const snap = await query.get();
+  let items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Transaction);
+
   if (filters.isExcluded !== undefined) {
-    query = query.where('isExcluded', '==', filters.isExcluded);
+    items = items.filter((tx) => tx.isExcluded === filters.isExcluded);
   }
   if (filters.isExtraordinary !== undefined) {
-    query = query.where('isExtraordinary', '==', filters.isExtraordinary);
+    items = items.filter((tx) => tx.isExtraordinary === filters.isExtraordinary);
   }
 
-  // For total count, we need a separate query (Firestore doesn't support COUNT with filters efficiently)
-  // In production, consider using a counter document or aggregation queries
-  const countSnap = await query.count().get();
-  const total = countSnap.data().count;
+  const total = items.length;
 
   // Pagination
   const offset = (filters.page - 1) * filters.limit;
-  const snap = await query.offset(offset).limit(filters.limit).get();
-
-  const items = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Transaction);
-  return { items, total };
+  const paged = items.slice(offset, offset + filters.limit);
+  return { items: paged, total };
 }
 
 export async function findByHash(
@@ -156,9 +155,11 @@ export async function getTransactionsForDashboard(
 ): Promise<Transaction[]> {
   const snap = await transactionsCollection(householdId)
     .where('period', '==', period)
-    .where('isExcluded', '==', false)
     .get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Transaction);
+  // Filter excluded in memory to avoid composite index requirement
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Transaction)
+    .filter((tx) => !tx.isExcluded);
 }
 
 /**
@@ -171,9 +172,11 @@ export async function getTransactionsForPeriods(
   // Firestore 'in' query supports up to 30 values
   const snap = await transactionsCollection(householdId)
     .where('period', 'in', periods)
-    .where('isExcluded', '==', false)
     .get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Transaction);
+  // Filter excluded in memory to avoid composite index requirement
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }) as Transaction)
+    .filter((tx) => !tx.isExcluded);
 }
 
 // ─── Update ──────────────────────────────────────────────────────────────────

@@ -38,7 +38,6 @@ export default function TransactionsPage() {
     params.set('limit', String(limit));
     if (period) params.set('period', period);
     if (categoryId) params.set('categoryId', categoryId);
-    params.set('isExcluded', 'false');
 
     try {
       const res = await fetch(`/api/households/${householdId}/transactions?${params}`);
