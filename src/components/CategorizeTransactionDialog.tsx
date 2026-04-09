@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -109,6 +109,8 @@ export default function CategorizeTransactionDialog({
   const [matchType, setMatchType] = useState<MatchType>('contains');
   const [priority, setPriority] = useState(100);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Reset state when the dialog opens with a new transaction
   useEffect(() => {
@@ -119,50 +121,16 @@ export default function CategorizeTransactionDialog({
       setMatchType('contains');
       setPriority(100);
       setLoading(false);
+      setSearch('');
     }
   }, [open, transaction]);
 
-  // Group categories by type (parent categories act as groups)
-  const groupedCategories = useMemo(() => {
-    const parents = categories.filter((c) => !c.parentId);
-    const children = categories.filter((c) => c.parentId);
-
-    // Build groups: each parent with its children
-    const groups: { label: string; type: string; items: Category[] }[] = [];
-
-    for (const parent of parents) {
-      const childCats = children.filter((c) => c.parentId === parent.id);
-      // Include parent itself as a selectable item plus its children
-      groups.push({
-        label: parent.name,
-        type: parent.type,
-        items: [parent, ...childCats],
-      });
-    }
-
-    // Also include orphan categories (no parent, no children pointing to them)
-    const parentIds = new Set(parents.map((p) => p.id));
-    const orphans = categories.filter(
-      (c) => !c.parentId && !children.some((ch) => ch.parentId === c.id),
-    );
-    // These are already in parents — filter to only true orphans (parents with no children)
-    // They are already included above, so no extra handling needed.
-
-    // If there are no parent/child relationships, group by type
-    if (groups.length === 0) {
-      const byType = new Map<string, Category[]>();
-      for (const cat of categories) {
-        const existing = byType.get(cat.type) || [];
-        existing.push(cat);
-        byType.set(cat.type, existing);
-      }
-      for (const [type, items] of byType) {
-        groups.push({ label: type, type, items });
-      }
-    }
-
-    return groups;
-  }, [categories]);
+  // Filter categories by search text (simple flat list)
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return categories;
+    const q = search.toLowerCase();
+    return categories.filter((c) => c.name.toLowerCase().includes(q));
+  }, [categories, search]);
 
   // Current category name for display
   const currentCategory = useMemo(
@@ -263,7 +231,7 @@ export default function CategorizeTransactionDialog({
         </div>
 
         {/* Category selector */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground">
             Nueva categoría
           </label>
@@ -272,35 +240,44 @@ export default function CategorizeTransactionDialog({
               Cargando categorías...
             </p>
           ) : (
-            <div className="max-h-72 overflow-y-auto space-y-3 pr-1 border border-border rounded-lg p-3">
-              {groupedCategories.map((group) => (
-                <div key={group.label}>
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {group.label}
-                  </span>
-                  <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                    {group.items.map((cat) => (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setSelectedCategoryId(cat.id)}
-                        className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition-colors ${
-                          selectedCategoryId === cat.id
-                            ? 'border-primary bg-primary/10 text-foreground'
-                            : 'border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                        }`}
-                      >
-                        <span
-                          className="inline-block size-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        <span className="truncate">{cat.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              <Input
+                ref={searchInputRef}
+                placeholder="Buscar categoría..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 text-sm"
+              />
+              <div className="max-h-60 overflow-y-auto border border-border rounded-lg">
+                {filteredCategories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    Sin resultados
+                  </p>
+                ) : (
+                  filteredCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors border-b border-border last:border-b-0 ${
+                        selectedCategoryId === cat.id
+                          ? 'bg-primary/10 text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                      }`}
+                    >
+                      <span
+                        className="inline-block size-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: cat.color }}
+                      />
+                      <span className="flex-1 truncate">{cat.name}</span>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {cat.type === 'fixed' ? 'Fijo' : 'Variable'}
+                      </Badge>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
           )}
         </div>
 

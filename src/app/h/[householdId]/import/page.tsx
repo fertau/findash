@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Upload, FileText, CheckCircle, XCircle,
   Loader2, Search, Building2, CreditCard, Landmark, FileSpreadsheet, Pencil, Wrench,
+  RefreshCw, Trash2, History,
 } from 'lucide-react';
 import { AVAILABLE_PARSERS } from '@/config/banks';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from '@/components/ui/table';
 
 type Step = 'upload' | 'detecting' | 'confirm' | 'importing' | 'success' | 'error';
 
@@ -35,6 +39,43 @@ interface ImportResult {
   transactionsImported: number;
   duplicatesSkipped: number;
   errors: string[];
+}
+
+interface ImportBatch {
+  id: string;
+  fileName: string;
+  fileHash: string;
+  sourceId: string;
+  period: string;
+  transactionCount: number;
+  duplicatesSkipped: number;
+  status: 'success' | 'partial' | 'error' | 'processing' | 'deleted';
+  importedBy: string;
+  importedAt: string;
+}
+
+interface ActionBanner {
+  type: 'success' | 'error';
+  message: string;
+}
+
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  success: { label: 'Exitoso', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  partial: { label: 'Parcial', className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+  error: { label: 'Error', className: 'bg-red-500/10 text-red-600 border-red-500/20' },
+  processing: { label: 'Procesando', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  deleted: { label: 'Eliminado', className: 'bg-gray-500/10 text-gray-500 border-gray-500/20' },
+};
+
+function formatDateAR(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 const FORMAT_ICONS: Record<string, string> = {
@@ -105,6 +146,80 @@ export default function ImportPage() {
   const [dragActive, setDragActive] = useState(false);
   const [householdTemplates, setHouseholdTemplates] = useState<Array<{ id: string; label: string; institution: string }>>([]);
 
+  // Import history state
+  const [imports, setImports] = useState<ImportBatch[]>([]);
+  const [importsLoading, setImportsLoading] = useState(true);
+  const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
+  const [recategorizingBatchId, setRecategorizingBatchId] = useState<string | null>(null);
+  const [actionBanner, setActionBanner] = useState<ActionBanner | null>(null);
+  const bannerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showBanner(banner: ActionBanner) {
+    if (bannerTimeoutRef.current) clearTimeout(bannerTimeoutRef.current);
+    setActionBanner(banner);
+    bannerTimeoutRef.current = setTimeout(() => setActionBanner(null), 5000);
+  }
+
+  const fetchImports = useCallback(async () => {
+    setImportsLoading(true);
+    try {
+      const res = await fetch(`/api/households/${householdId}/import/history`);
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      setImports(data.items || []);
+    } catch {
+      setImports([]);
+    } finally {
+      setImportsLoading(false);
+    }
+  }, [householdId]);
+
+  async function handleRecategorize(batchId: string) {
+    setRecategorizingBatchId(batchId);
+    try {
+      const res = await fetch(`/api/households/${householdId}/import/${batchId}/recategorize`, {
+        method: 'POST',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Error al re-categorizar');
+      showBanner({
+        type: 'success',
+        message: `Re-categorizacion completada: ${data.categorized ?? '?'} transacciones actualizadas.`,
+      });
+    } catch (err) {
+      showBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Error al re-categorizar',
+      });
+    } finally {
+      setRecategorizingBatchId(null);
+    }
+  }
+
+  async function handleDeleteBatch(batchId: string, fileName: string) {
+    if (!window.confirm(`Eliminar la importacion "${fileName}"? Esto borrara todas las transacciones de este lote.`)) return;
+    setDeletingBatchId(batchId);
+    try {
+      const res = await fetch(`/api/households/${householdId}/import/${batchId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Error al eliminar');
+      showBanner({
+        type: 'success',
+        message: `Importacion "${fileName}" eliminada correctamente.`,
+      });
+      await fetchImports();
+    } catch (err) {
+      showBanner({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Error al eliminar',
+      });
+    } finally {
+      setDeletingBatchId(null);
+    }
+  }
+
   // Fetch household parser templates on mount
   useEffect(() => {
     fetch(`/api/households/${householdId}/parser-templates`)
@@ -112,6 +227,11 @@ export default function ImportPage() {
       .then((data) => setHouseholdTemplates(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, [householdId]);
+
+  // Fetch import history on mount
+  useEffect(() => {
+    fetchImports();
+  }, [fetchImports]);
 
   const effectiveParser = detection
     ? (parserOverride || autoResolveParser(detection))
@@ -189,6 +309,7 @@ export default function ImportPage() {
 
       setResult(data);
       setStep('success');
+      fetchImports();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al importar');
       setStep('error');
@@ -220,7 +341,7 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <h1 className="text-xl font-semibold text-foreground">Importar resumen</h1>
 
       {/* Step 1: Upload */}
@@ -458,6 +579,127 @@ export default function ImportPage() {
           </Button>
         </div>
       )}
+
+      {/* ─── Import History ─── */}
+      <div className="pt-6 border-t border-border/50">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <History className="w-5 h-5 text-muted-foreground" />
+            Historial de importaciones
+          </h2>
+          <Button variant="ghost" size="sm" onClick={fetchImports} disabled={importsLoading}>
+            <RefreshCw className={cn('w-4 h-4', importsLoading && 'animate-spin')} />
+          </Button>
+        </div>
+
+        {/* Action banner */}
+        {actionBanner && (
+          <div
+            className={cn(
+              'mb-4 px-4 py-2 rounded-md text-sm font-medium transition-all',
+              actionBanner.type === 'success'
+                ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                : 'bg-red-500/10 text-red-600 border border-red-500/20'
+            )}
+          >
+            {actionBanner.message}
+          </div>
+        )}
+
+        {importsLoading && imports.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+          </div>
+        ) : imports.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No hay importaciones anteriores.
+          </p>
+        ) : (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Archivo</TableHead>
+                  <TableHead>Periodo</TableHead>
+                  <TableHead className="text-right">Txns</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {imports.map((batch) => {
+                  const statusCfg = STATUS_CONFIG[batch.status] || STATUS_CONFIG.success;
+                  const isDeleted = batch.status === 'deleted';
+                  const isDeleting = deletingBatchId === batch.id;
+                  const isRecategorizing = recategorizingBatchId === batch.id;
+
+                  return (
+                    <TableRow key={batch.id} className={isDeleted ? 'opacity-60' : ''}>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {formatDateAR(batch.importedAt)}
+                      </TableCell>
+                      <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                        {batch.fileName}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {batch.period || '—'}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-sm">
+                        {batch.transactionCount}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={statusCfg.className}
+                        >
+                          {statusCfg.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isDeleted ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={isRecategorizing || isDeleting}
+                              onClick={() => handleRecategorize(batch.id)}
+                              className="text-xs h-7 px-2"
+                            >
+                              {isRecategorizing ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="w-3 h-3" />
+                              )}
+                              Re-categorizar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={isDeleting || isRecategorizing}
+                              onClick={() => handleDeleteBatch(batch.id, batch.fileName)}
+                              className="text-xs h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
+                              Eliminar
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

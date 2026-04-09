@@ -6,7 +6,7 @@ export const CurrencySchema = z.enum(['ARS', 'USD', 'UYU']);
 export const MemberRoleSchema = z.enum(['owner', 'member']);
 export const CategoryTypeSchema = z.enum(['Fijo', 'Variable']);
 export const RuleMatchTypeSchema = z.enum(['exact', 'contains', 'regex']);
-export const ImportStatusSchema = z.enum(['processing', 'success', 'partial', 'error', 'skipped']);
+export const ImportStatusSchema = z.enum(['processing', 'success', 'partial', 'error', 'skipped', 'deleted']);
 
 // ─── Household ───────────────────────────────────────────────────────────────
 

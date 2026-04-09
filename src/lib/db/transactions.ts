@@ -194,6 +194,38 @@ export async function updateTransaction(
 
 // ─── Delete (soft) ───────────────────────────────────────────────────────────
 
+/**
+ * Hard-delete all transactions belonging to an import batch.
+ * Chunks deletes into groups of 400 to stay within Firestore batch limits.
+ */
+export async function hardDeleteTransactionsByBatch(
+  householdId: string,
+  importBatchId: string
+): Promise<number> {
+  const db = getAdminDb();
+  const snap = await transactionsCollection(householdId)
+    .where('importBatchId', '==', importBatchId)
+    .get();
+
+  if (snap.empty) return 0;
+
+  const CHUNK_SIZE = 400;
+  const docs = snap.docs;
+
+  for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+    const chunk = docs.slice(i, i + CHUNK_SIZE);
+    const batch = db.batch();
+    for (const doc of chunk) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+  }
+
+  return docs.length;
+}
+
+// ─── Delete (soft) ───────────────────────────────────────────────────────────
+
 export async function softDeleteTransaction(
   householdId: string,
   txId: string

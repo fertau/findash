@@ -36,6 +36,7 @@ export default function TransactionsPage() {
   const [categorizeTarget, setCategorizeTarget] = useState<Transaction | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [aiCategorizing, setAiCategorizing] = useState(false);
+  const [aiBanner, setAiBanner] = useState<string | null>(null);
 
   const period = searchParams.get('period') || '';
   const categoryId = searchParams.get('categoryId') || '';
@@ -99,6 +100,7 @@ export default function TransactionsPage() {
             disabled={aiCategorizing}
             onClick={async () => {
               setAiCategorizing(true);
+              setAiBanner(null);
               try {
                 const res = await fetch(`/api/households/${householdId}/transactions/ai-categorize`, {
                   method: 'POST',
@@ -107,10 +109,22 @@ export default function TransactionsPage() {
                 });
                 if (res.ok) {
                   const data = await res.json();
-                  if (data.categorized > 0) fetchTransactions();
+                  fetchTransactions();
+                  if (data.processed === 0) {
+                    setAiBanner('No hay transacciones sin categorizar');
+                  } else {
+                    setAiBanner(`AI categorizó ${data.categorized} de ${data.processed} transacciones`);
+                  }
+                } else if (res.status === 400) {
+                  setAiBanner('API key no configurada');
+                } else {
+                  setAiBanner('Error al categorizar');
                 }
+              } catch {
+                setAiBanner('Error al categorizar');
               } finally {
                 setAiCategorizing(false);
+                setTimeout(() => setAiBanner(null), 5000);
               }
             }}
           >
@@ -120,6 +134,12 @@ export default function TransactionsPage() {
           <span className="text-sm text-muted-foreground">{total} resultados</span>
         </div>
       </div>
+
+      {aiBanner && (
+        <div className="rounded-md bg-primary/10 border border-primary/20 px-4 py-2 text-sm text-foreground">
+          {aiBanner}
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0">

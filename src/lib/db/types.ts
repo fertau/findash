@@ -206,7 +206,7 @@ export interface ParserTemplate {
 
 // ─── Import ──────────────────────────────────────────────────────────────────
 
-export type ImportStatus = 'processing' | 'success' | 'partial' | 'error' | 'skipped';
+export type ImportStatus = 'processing' | 'success' | 'partial' | 'error' | 'skipped' | 'deleted';
 
 export interface ImportBatch {
   id: string;
