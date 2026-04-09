@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Ban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import ExcludeTransactionDialog from '@/components/ExcludeTransactionDialog';
 import type { Transaction, Currency } from '@/lib/db/types';
 
 function formatAmount(amount: number, currency: Currency): string {
@@ -27,6 +28,9 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const limit = 50;
+
+  const [excludeDialogOpen, setExcludeDialogOpen] = useState(false);
+  const [excludeTarget, setExcludeTarget] = useState<Transaction | null>(null);
 
   const period = searchParams.get('period') || '';
   const categoryId = searchParams.get('categoryId') || '';
@@ -72,20 +76,21 @@ export default function TransactionsPage() {
                 <TableHead className="text-xs uppercase">Categoría</TableHead>
                 <TableHead className="text-xs uppercase text-right">Monto</TableHead>
                 <TableHead className="text-xs uppercase text-center">Cuota</TableHead>
+                <TableHead className="text-xs uppercase text-center w-16"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <div className="h-4 bg-muted rounded animate-pulse" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : transactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="p-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="p-8 text-center text-muted-foreground">
                     No hay transacciones para este período
                   </TableCell>
                 </TableRow>
@@ -108,6 +113,20 @@ export default function TransactionsPage() {
                           {tx.installment.current}/{tx.installment.total}
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          setExcludeTarget(tx);
+                          setExcludeDialogOpen(true);
+                        }}
+                        title="Excluir"
+                      >
+                        <Ban className="size-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -141,6 +160,13 @@ export default function TransactionsPage() {
           )}
         </CardContent>
       </Card>
+      <ExcludeTransactionDialog
+        open={excludeDialogOpen}
+        onOpenChange={setExcludeDialogOpen}
+        transaction={excludeTarget}
+        householdId={householdId}
+        onExcluded={() => fetchTransactions()}
+      />
     </div>
   );
 }

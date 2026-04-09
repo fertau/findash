@@ -9,6 +9,7 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
 import ParserTemplatesTab from './parser-templates';
+import ExclusionRulesManager from '@/components/ExclusionRulesManager';
 
 type Tab = 'categories' | 'rules' | 'exclusions' | 'rates' | 'members' | 'cards' | 'parsers';
 
@@ -96,8 +97,13 @@ export default function SettingsPage() {
         <ParserTemplatesTab householdId={householdId} autoNew={autoNew} />
       )}
 
+      {/* Exclusions tab — full CRUD component */}
+      {activeTab === 'exclusions' && (
+        <ExclusionRulesManager householdId={householdId} />
+      )}
+
       {/* Content — other tabs */}
-      {activeTab !== 'parsers' && (
+      {activeTab !== 'parsers' && activeTab !== 'exclusions' && (
         <Card>
           {loading ? (
             <div className="p-8 text-center text-muted-foreground">Cargando...</div>
@@ -122,14 +128,6 @@ export default function SettingsPage() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Categoría</TableHead>
                       <TableHead className="text-right">Prioridad</TableHead>
-                    </>
-                  )}
-                  {activeTab === 'exclusions' && (
-                    <>
-                      <TableHead>Patrón</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Razón</TableHead>
-                      <TableHead className="text-center">Activo</TableHead>
                     </>
                   )}
                   {activeTab === 'rates' && (
@@ -183,20 +181,6 @@ export default function SettingsPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{String(item.categoryId)}</TableCell>
                         <TableCell className="text-right tabular-nums text-muted-foreground">{String(item.priority)}</TableCell>
-                      </>
-                    )}
-                    {activeTab === 'exclusions' && (
-                      <>
-                        <TableCell className="font-mono text-xs">{String(item.pattern)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{String(item.matchType)}</Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{String(item.reason)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={item.isActive ? 'default' : 'secondary'}>
-                            {item.isActive ? 'Sí' : 'No'}
-                          </Badge>
-                        </TableCell>
                       </>
                     )}
                     {activeTab === 'rates' && (
