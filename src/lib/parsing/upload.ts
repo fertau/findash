@@ -65,8 +65,8 @@ export async function handleFileUpload(
       // Storage not configured or unavailable — continue without archiving
     }
 
-    // Step 5: Parse file
-    const parseResult = await parseFile(file.buffer, file.fileName, sourceId);
+    // Step 5: Parse file (pass householdId so template parsers can be tried)
+    const parseResult = await parseFile(file.buffer, file.fileName, sourceId, householdId);
 
     if (parseResult.transactions.length === 0) {
       await updateImportBatch(householdId, importBatch.id, {

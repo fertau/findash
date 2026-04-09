@@ -102,6 +102,10 @@ export function importSourcesCollection(householdId: string) {
   return householdRef(householdId).collection('import_sources');
 }
 
+export function parserTemplatesCollection(householdId: string) {
+  return householdRef(householdId).collection('parser_templates');
+}
+
 export function usersCollection() {
   return getAdminDb().collection('users');
 }

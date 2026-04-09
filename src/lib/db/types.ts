@@ -156,6 +156,53 @@ export interface ImportSource {
   updatedAt: string;
 }
 
+// ─── Parser Templates (user-defined statement parsers) ──────────────────────
+
+export type DateFormatKey = 'DD/MM/YY' | 'DD-MM-YY' | 'DD-Mmm-YY' | 'YY-Month-DD' | 'DD MM YY';
+
+export interface ParserTemplate {
+  id: string;
+  householdId: string;
+  /** Human-readable name, e.g. "HSBC – Cuenta Corriente" */
+  label: string;
+  institution: string;
+  documentType: string;
+  /** Regex patterns (as strings) for auto-detecting this document format */
+  fingerprints: string[];
+  /** Text or /regex/ that marks where transactions start in the document */
+  sectionStart?: string;
+  /** Text or /regex/ that marks where transactions end */
+  sectionEnd?: string;
+  /** How dates appear in transaction lines */
+  dateFormat: DateFormatKey;
+  /** Regex strings — lines matching any of these are skipped */
+  skipPatterns: string[];
+  /** Regex string for repeated page headers (multi-page docs) */
+  pageHeaderPattern?: string;
+  /** Whether amounts can have a trailing minus sign for credits (e.g. "1.234,56-") */
+  hasTrailingMinus: boolean;
+  /** Whether the last amount on a line is a running balance (should be ignored) */
+  hasBalanceColumn: boolean;
+  /** Primary currency for transactions */
+  defaultCurrency: Currency;
+  /** If the document has two amount columns (e.g. ARS + USD) */
+  dualCurrency?: {
+    secondaryCurrency: Currency;
+    mode: 'column' | 'section';
+    /** For section mode: patterns that switch the active currency */
+    sectionPatterns?: { pattern: string; currency: Currency }[];
+  };
+  /** True for card statements where all charges should be negative */
+  negateAmounts: boolean;
+  /** Minimum leading spaces for a line to be treated as continuation of previous tx */
+  continuationMinIndent?: number;
+  /** Regex patterns to strip from descriptions (comprobante numbers, etc.) */
+  descriptionCleanup?: string[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
 // ─── Import ──────────────────────────────────────────────────────────────────
 
 export type ImportStatus = 'processing' | 'success' | 'partial' | 'error' | 'skipped';
