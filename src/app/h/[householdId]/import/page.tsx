@@ -313,10 +313,10 @@ export default function ImportPage() {
                   </optgroup>
                 )}
 
-                {/* All available parsers */}
-                <optgroup label="Todos los formatos">
+                {/* Generic fallbacks only — bank-specific parsers show via detection */}
+                <optgroup label="Genéricos">
                   {AVAILABLE_PARSERS
-                    .filter((p) => p.key !== detection.parserKey)
+                    .filter((p) => (p.key === 'generic_csv' || p.key === 'generic_xlsx') && p.key !== detection.parserKey)
                     .map((p) => (
                       <option key={p.key} value={p.key}>
                         {p.label}
