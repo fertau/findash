@@ -51,6 +51,5 @@ public/*.pdf
 public/*.xls
 public/*.xlsx
 
-# scratch/test files
+# scratch files
 test-parsers.mts
-test/data/
