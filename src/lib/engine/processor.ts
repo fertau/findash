@@ -139,13 +139,11 @@ export async function processTransactions(
       sourceId: ctx.sourceId,
       memberId: ctx.memberId,
       isExcluded: exclusion.excluded,
-      exclusionReason: exclusion.reason,
       isExtraordinary: false,
-      installment: installment
-        ? { current: installment.current, total: installment.total, groupId: installment.groupId }
-        : undefined,
       importBatchId: ctx.importBatchId,
       hash: raw.hash,
+      ...(exclusion.reason ? { exclusionReason: exclusion.reason } : {}),
+      ...(installment ? { installment: { current: installment.current, total: installment.total, groupId: installment.groupId } } : {}),
     });
   }
 

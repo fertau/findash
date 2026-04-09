@@ -36,7 +36,11 @@ export async function batchCreateTransactions(
 
     for (const tx of chunk) {
       const ref = transactionsCollection(householdId).doc();
-      batch.set(ref, { ...tx, createdAt: now, updatedAt: now });
+      // Strip undefined values — Firestore rejects them
+      const clean = Object.fromEntries(
+        Object.entries({ ...tx, createdAt: now, updatedAt: now }).filter(([, v]) => v !== undefined)
+      );
+      batch.set(ref, clean);
       ids.push(ref.id);
     }
 
