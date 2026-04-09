@@ -112,14 +112,13 @@ export async function handleFileUpload(
 
     // Step 9: Update import batch record
     const status = processResult.errors.length > 0 ? 'partial' : 'success';
-    const updateData: Record<string, unknown> = {
+    await updateImportBatch(householdId, importBatch.id, {
       status,
       transactionCount: transactionsImported,
       duplicatesSkipped: processResult.duplicatesSkipped,
-    };
-    if (parseResult.period) updateData.period = parseResult.period;
-    if (processResult.errors.length > 0) updateData.notes = `${processResult.errors.length} errors during processing`;
-    await updateImportBatch(householdId, importBatch.id, updateData);
+      ...(parseResult.period ? { period: parseResult.period } : {}),
+      ...(processResult.errors.length > 0 ? { notes: `${processResult.errors.length} errors during processing` } : {}),
+    });
 
     return {
       importBatch: {
