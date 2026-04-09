@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import {
-  Upload, FileText, CheckCircle, AlertTriangle, XCircle,
-  Loader2, Search, ChevronDown, ChevronRight, Building2, CreditCard, Landmark, FileSpreadsheet,
+  Upload, FileText, CheckCircle, XCircle,
+  Loader2, Search, Building2, CreditCard, Landmark, FileSpreadsheet, Pencil,
 } from 'lucide-react';
 import { AVAILABLE_PARSERS } from '@/config/banks';
 import { cn } from '@/lib/cn';
@@ -33,31 +33,57 @@ interface ImportResult {
   errors: string[];
 }
 
-const CONFIDENCE_CONFIG = {
-  high: { label: 'Alta', color: 'text-accent-positive', bg: 'bg-accent-positive/10', border: 'border-accent-positive/20' },
-  medium: { label: 'Media', color: 'text-accent-warning', bg: 'bg-accent-warning/10', border: 'border-accent-warning/20' },
-  low: { label: 'Baja', color: 'text-accent-negative', bg: 'bg-accent-negative/10', border: 'border-accent-negative/20' },
-};
-
-const FORMAT_LABELS: Record<string, string> = {
+const FORMAT_ICONS: Record<string, string> = {
   pdf: 'PDF',
   csv: 'CSV',
-  xls: 'Excel (XLS)',
-  xlsx: 'Excel (XLSX)',
+  xls: 'XLS',
+  xlsx: 'XLSX',
   tsv: 'TSV',
-  unknown: 'Desconocido',
 };
 
-function InstitutionIcon({ institution }: { institution: string | null }) {
-  if (!institution) return <FileSpreadsheet className="w-8 h-8 text-text-muted" />;
-  return <Building2 className="w-8 h-8 text-accent-info" />;
+/** Human-readable summary of what the system detected */
+function detectionSummary(d: DetectionResult): { title: string; subtitle: string } {
+  if (d.isKnownSource && d.matchedSourceLabel) {
+    return { title: d.matchedSourceLabel, subtitle: 'Fuente reconocida de importaciones anteriores' };
+  }
+  if (d.institution && d.documentType) {
+    return { title: `${d.institution} — ${d.documentType}`, subtitle: `Detectado del contenido del archivo (${FORMAT_ICONS[d.fileFormat] || d.fileFormat})` };
+  }
+  if (d.institution) {
+    return { title: d.institution, subtitle: `Institución detectada (${FORMAT_ICONS[d.fileFormat] || d.fileFormat})` };
+  }
+  // No institution detected — describe by format
+  const fmt = FORMAT_ICONS[d.fileFormat] || d.fileFormat;
+  return { title: `Archivo ${fmt}`, subtitle: 'Se importará con detección automática de columnas' };
 }
 
-function DocumentTypeIcon({ type }: { type: string | null }) {
-  if (!type) return <FileText className="w-5 h-5 text-text-muted" />;
-  if (/tarjeta|card|visa|amex|mastercard/i.test(type)) return <CreditCard className="w-5 h-5 text-accent-info" />;
-  if (/cuenta|bank|extracto/i.test(type)) return <Landmark className="w-5 h-5 text-accent-info" />;
-  return <FileText className="w-5 h-5 text-accent-info" />;
+/** Pick the right icon for the detection result */
+function DetectionIcon({ detection }: { detection: DetectionResult }) {
+  if (detection.institution) {
+    return <Building2 className="w-9 h-9 text-accent-info" />;
+  }
+  if (detection.documentType && /tarjeta|card|visa/i.test(detection.documentType)) {
+    return <CreditCard className="w-9 h-9 text-accent-info" />;
+  }
+  if (detection.documentType && /cuenta|bank/i.test(detection.documentType)) {
+    return <Landmark className="w-9 h-9 text-accent-info" />;
+  }
+  return <FileSpreadsheet className="w-9 h-9 text-text-muted" />;
+}
+
+/**
+ * Given a detection result, resolve the parser key automatically.
+ * CSV/TSV → generic_csv, XLS/XLSX → generic_xlsx, PDF + institution → bank parser.
+ */
+function autoResolveParser(d: DetectionResult): string {
+  // If the detector already matched a specific parser, use it
+  if (d.parserKey) return d.parserKey;
+
+  // Fallback by file format
+  if (d.fileFormat === 'csv' || d.fileFormat === 'tsv') return 'generic_csv';
+  if (d.fileFormat === 'xls' || d.fileFormat === 'xlsx') return 'generic_xlsx';
+
+  return 'generic_csv'; // last resort
 }
 
 export default function ImportPage() {
@@ -67,13 +93,15 @@ export default function ImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [step, setStep] = useState<Step>('upload');
   const [detection, setDetection] = useState<DetectionResult | null>(null);
-  const [selectedParserKey, setSelectedParserKey] = useState<string>('');
-  const [selectedInstitution, setSelectedInstitution] = useState('');
-  const [selectedDocType, setSelectedDocType] = useState('');
-  const [showAlternatives, setShowAlternatives] = useState(false);
+  const [parserOverride, setParserOverride] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+
+  const effectiveParser = detection
+    ? (parserOverride || autoResolveParser(detection))
+    : '';
 
   const detectFile = useCallback(async (fileToDetect: File) => {
     setStep('detecting');
@@ -95,14 +123,8 @@ export default function ImportPage() {
 
       const data: DetectionResult = await res.json();
       setDetection(data);
-
-      // Pre-select the detected values
-      setSelectedParserKey(data.parserKey || '');
-      setSelectedInstitution(data.institution || '');
-      setSelectedDocType(data.documentType || '');
-
-      // If it's a known source with high confidence, could auto-import
-      // but we always ask for confirmation per user's request
+      setParserOverride(null);
+      setIsEditing(false);
       setStep('confirm');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al analizar el archivo');
@@ -129,17 +151,17 @@ export default function ImportPage() {
   }
 
   async function handleImport() {
-    if (!file || !selectedParserKey) return;
+    if (!file || !effectiveParser) return;
     setStep('importing');
     setError('');
 
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('sourceId', selectedParserKey);
+      formData.append('sourceId', effectiveParser);
       formData.append('memberId', 'self');
-      formData.append('institution', selectedInstitution);
-      formData.append('documentType', selectedDocType);
+      if (detection?.institution) formData.append('institution', detection.institution);
+      if (detection?.documentType) formData.append('documentType', detection.documentType);
 
       const res = await fetch(`/api/households/${householdId}/import`, {
         method: 'POST',
@@ -164,10 +186,8 @@ export default function ImportPage() {
     setFile(null);
     setStep('upload');
     setDetection(null);
-    setSelectedParserKey('');
-    setSelectedInstitution('');
-    setSelectedDocType('');
-    setShowAlternatives(false);
+    setParserOverride(null);
+    setIsEditing(false);
     setResult(null);
     setError('');
   }
@@ -195,10 +215,10 @@ export default function ImportPage() {
             accept=".pdf,.csv,.xls,.xlsx,.tsv"
             onChange={handleFileSelect}
           />
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3">
             <Upload className="w-10 h-10 text-text-muted" />
             <p className="text-sm text-text-secondary">Arrastrá un archivo o hacé click para seleccionar</p>
-            <p className="text-xs text-text-muted">PDF, CSV, XLS, XLSX — el sistema detecta automáticamente la institución</p>
+            <p className="text-xs text-text-muted">PDF, CSV, XLS, XLSX</p>
           </div>
         </div>
       )}
@@ -213,159 +233,96 @@ export default function ImportPage() {
       )}
 
       {/* Step 3: Confirm detection */}
-      {step === 'confirm' && detection && (
-        <div className="space-y-4">
-          {/* File info bar */}
-          <div className="flex items-center gap-3 px-4 py-3 bg-bg-surface rounded-lg border border-border">
-            <FileText className="w-5 h-5 text-text-muted flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-text-primary font-medium truncate">{file?.name}</p>
-              <p className="text-xs text-text-muted">
-                {FORMAT_LABELS[detection.fileFormat] || detection.fileFormat}
-                {file && ` · ${(file.size / 1024).toFixed(0)} KB`}
-              </p>
-            </div>
-            <button onClick={reset} className="text-xs text-accent-info hover:underline flex-shrink-0">
-              Cambiar
-            </button>
-          </div>
-
-          {/* Detection result card */}
-          <div className={cn(
-            'rounded-lg border p-5',
-            detection.isKnownSource
-              ? 'bg-accent-positive/5 border-accent-positive/20'
-              : CONFIDENCE_CONFIG[detection.confidence].bg + ' ' + CONFIDENCE_CONFIG[detection.confidence].border
-          )}>
-            {detection.isKnownSource && (
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle className="w-4 h-4 text-accent-positive" />
-                <span className="text-xs font-medium text-accent-positive">Fuente reconocida</span>
-              </div>
-            )}
-
-            <div className="flex items-start gap-4">
-              <InstitutionIcon institution={detection.institution} />
-              <div className="flex-1">
-                {detection.institution ? (
-                  <>
-                    <p className="text-lg font-semibold text-text-primary">{detection.institution}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <DocumentTypeIcon type={detection.documentType} />
-                      <span className="text-sm text-text-secondary">{detection.documentType || 'Documento'}</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg font-semibold text-text-primary">Institución no detectada</p>
-                    <p className="text-sm text-text-muted mt-1">Seleccioná el formato correcto abajo</p>
-                  </>
-                )}
-                {!detection.isKnownSource && detection.institution && (
-                  <div className="mt-2">
-                    <span className={cn('text-xs font-medium', CONFIDENCE_CONFIG[detection.confidence].color)}>
-                      Confianza: {CONFIDENCE_CONFIG[detection.confidence].label}
+      {step === 'confirm' && detection && (() => {
+        const summary = detectionSummary(detection);
+        return (
+          <div className="space-y-4">
+            {/* Detection card */}
+            <div className="rounded-lg border border-border bg-bg-surface p-5">
+              <div className="flex items-start gap-4">
+                <DetectionIcon detection={detection} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-lg font-semibold text-text-primary">{summary.title}</p>
+                  <p className="text-sm text-text-muted mt-0.5">{summary.subtitle}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-xs text-text-muted">
+                      {file?.name} · {file && `${(file.size / 1024).toFixed(0)} KB`}
                     </span>
                   </div>
-                )}
+                </div>
+                <button
+                  onClick={reset}
+                  className="text-xs text-accent-info hover:underline flex-shrink-0 mt-1"
+                >
+                  Cambiar archivo
+                </button>
               </div>
-            </div>
 
-            {/* Parser selection */}
-            <div className="mt-4 pt-4 border-t border-border/50">
-              <label className="block text-xs font-medium text-text-secondary uppercase mb-2">
-                Formato de parseo
-              </label>
-              <select
-                value={selectedParserKey}
-                onChange={(e) => {
-                  setSelectedParserKey(e.target.value);
-                  // Update institution/doctype from parser metadata
-                  const parser = AVAILABLE_PARSERS.find((p) => p.key === e.target.value);
-                  if (parser) {
-                    // Try to extract institution from label
-                    const match = parser.label.match(/formato\s+(\w+)/i);
-                    if (match) setSelectedInstitution(match[1]);
-                  }
-                }}
-                className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-info"
-              >
-                <option value="">Seleccioná el formato</option>
+              {/* Correction toggle — collapsed by default */}
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-1.5 mt-4 text-xs text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  <Pencil className="w-3 h-3" />
+                  Corregir detección
+                </button>
+              )}
 
-                {/* Show detected/matched first */}
-                {detection.parserKey && (
-                  <option value={detection.parserKey}>
-                    {AVAILABLE_PARSERS.find((p) => p.key === detection.parserKey)?.label || detection.parserKey}
-                    {' '}(detectado)
-                  </option>
-                )}
-
-                {/* Previously used sources from this household */}
-                {detection.householdSources && detection.householdSources.length > 0 && (
-                  <optgroup label="Fuentes anteriores">
-                    {detection.householdSources
-                      .filter((s) => s.parserKey !== detection.parserKey)
-                      .map((s) => (
-                        <option key={`hs-${s.id}`} value={s.parserKey}>
-                          {s.label}
+              {isEditing && (
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <label className="block text-xs font-medium text-text-muted mb-2">
+                    Formato de parseo
+                  </label>
+                  <select
+                    value={parserOverride || autoResolveParser(detection)}
+                    onChange={(e) => setParserOverride(e.target.value)}
+                    className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-info"
+                  >
+                    {/* Detected candidates (bank-specific) */}
+                    {detection.candidates
+                      .filter((c) => c.score > 0)
+                      .map((c) => (
+                        <option key={c.parserKey} value={c.parserKey}>
+                          {c.label}
                         </option>
                       ))}
-                  </optgroup>
-                )}
 
-                {/* Generic fallbacks only — bank-specific parsers show via detection */}
-                <optgroup label="Genéricos">
-                  {AVAILABLE_PARSERS
-                    .filter((p) => (p.key === 'generic_csv' || p.key === 'generic_xlsx') && p.key !== detection.parserKey)
-                    .map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.label}
-                      </option>
-                    ))}
-                </optgroup>
-              </select>
+                    {/* Previously used household sources */}
+                    {detection.householdSources && detection.householdSources.length > 0 &&
+                      detection.householdSources
+                        .filter((s) => !detection.candidates.some((c) => c.parserKey === s.parserKey && c.score > 0))
+                        .map((s) => (
+                          <option key={`hs-${s.id}`} value={s.parserKey}>
+                            {s.label}
+                          </option>
+                        ))
+                    }
+
+                    {/* Generic fallbacks */}
+                    <option value="generic_csv">CSV genérico</option>
+                    <option value="generic_xlsx">Excel genérico</option>
+                  </select>
+                  <button
+                    onClick={() => { setParserOverride(null); setIsEditing(false); }}
+                    className="mt-2 text-xs text-text-muted hover:text-text-secondary"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Show other candidates if confidence is not high */}
-            {detection.candidates.length > 1 && !detection.isKnownSource && (
-              <div className="mt-3">
-                <button
-                  onClick={() => setShowAlternatives(!showAlternatives)}
-                  className="flex items-center gap-1 text-xs text-text-muted hover:text-text-secondary"
-                >
-                  {showAlternatives ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  {detection.candidates.length - 1} alternativa{detection.candidates.length > 2 ? 's' : ''} detectada{detection.candidates.length > 2 ? 's' : ''}
-                </button>
-                {showAlternatives && (
-                  <div className="mt-2 space-y-1">
-                    {detection.candidates
-                      .filter((c) => c.parserKey !== selectedParserKey)
-                      .map((c) => (
-                        <button
-                          key={c.parserKey}
-                          onClick={() => setSelectedParserKey(c.parserKey)}
-                          className="w-full text-left px-3 py-2 text-xs bg-bg-primary/50 rounded border border-border/50 hover:border-accent-info/30 transition-colors"
-                        >
-                          <span className="text-text-primary">{c.label}</span>
-                          {c.description && <span className="text-text-muted ml-2">{c.description}</span>}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Import button */}
+            <button
+              onClick={handleImport}
+              className="w-full px-4 py-3 bg-accent-info hover:bg-accent-info/90 text-white rounded-md text-sm font-medium transition-colors"
+            >
+              Importar
+            </button>
           </div>
-
-          {/* Import button */}
-          <button
-            onClick={handleImport}
-            disabled={!selectedParserKey}
-            className="w-full px-4 py-2.5 bg-accent-info hover:bg-accent-info/90 text-white rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {detection.isKnownSource ? 'Importar' : 'Confirmar e importar'}
-          </button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Step 4: Importing */}
       {step === 'importing' && (
@@ -383,15 +340,6 @@ export default function ImportPage() {
               <CheckCircle className="w-6 h-6 text-accent-positive" />
               <h2 className="text-lg font-semibold text-text-primary">Importación exitosa</h2>
             </div>
-
-            {detection?.institution && (
-              <p className="text-sm text-text-muted mb-4">
-                {detection.institution} — {detection.documentType || 'Documento'}
-                {!detection.isKnownSource && (
-                  <span className="ml-2 text-accent-info">(guardado como fuente)</span>
-                )}
-              </p>
-            )}
 
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
