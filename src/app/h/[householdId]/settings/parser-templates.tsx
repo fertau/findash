@@ -62,7 +62,7 @@ const emptyTemplate = (): ParserTemplateData => ({
   negateAmounts: false,
 });
 
-export default function ParserTemplatesTab({ householdId }: { householdId: string }) {
+export default function ParserTemplatesTab({ householdId, autoNew = false }: { householdId: string; autoNew?: boolean }) {
   const [templates, setTemplates] = useState<(ParserTemplateData & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ParserTemplateData | null>(null);
@@ -89,6 +89,37 @@ export default function ParserTemplatesTab({ householdId }: { householdId: strin
   }, [householdId]);
 
   useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
+
+  // Auto-open new template builder when coming from import page
+  useEffect(() => {
+    if (!autoNew || loading) return;
+
+    const prefillText = sessionStorage.getItem('templateBuilderText') || '';
+    const prefillInstitution = sessionStorage.getItem('templateBuilderInstitution') || '';
+    const prefillFileName = sessionStorage.getItem('templateBuilderFileName') || '';
+
+    // Clean up
+    sessionStorage.removeItem('templateBuilderText');
+    sessionStorage.removeItem('templateBuilderInstitution');
+    sessionStorage.removeItem('templateBuilderFileName');
+
+    const template = emptyTemplate();
+    if (prefillInstitution) {
+      template.institution = prefillInstitution;
+      template.label = `${prefillInstitution} – Documento`;
+    }
+    if (prefillInstitution) {
+      template.fingerprints = [`/${prefillInstitution}/i`];
+    }
+
+    setEditing(template);
+    setIsNew(true);
+    setTestResult(null);
+
+    if (prefillText) {
+      setTestText(prefillText);
+    }
+  }, [autoNew, loading]);
 
   function startNew() {
     setEditing(emptyTemplate());

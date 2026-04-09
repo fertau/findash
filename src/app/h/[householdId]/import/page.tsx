@@ -3,11 +3,11 @@
 import { useState, useCallback } from 'react';
 import {
   Upload, FileText, CheckCircle, XCircle,
-  Loader2, Search, Building2, CreditCard, Landmark, FileSpreadsheet, Pencil,
+  Loader2, Search, Building2, CreditCard, Landmark, FileSpreadsheet, Pencil, Wrench,
 } from 'lucide-react';
 import { AVAILABLE_PARSERS } from '@/config/banks';
 import { cn } from '@/lib/cn';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 type Step = 'upload' | 'detecting' | 'confirm' | 'importing' | 'success' | 'error';
 
@@ -23,6 +23,7 @@ interface DetectionResult {
   matchedSourceId?: string;
   matchedSourceLabel?: string;
   householdSources?: Array<{ id: string; label: string; parserKey: string; institution: string; documentType: string }>;
+  extractedText?: string;
 }
 
 interface ImportResult {
@@ -88,6 +89,7 @@ function autoResolveParser(d: DetectionResult): string {
 
 export default function ImportPage() {
   const params = useParams();
+  const router = useRouter();
   const householdId = params.householdId as string;
 
   const [file, setFile] = useState<File | null>(null);
@@ -189,6 +191,20 @@ export default function ImportPage() {
     setIsEditing(false);
     setResult(null);
     setError('');
+  }
+
+  function goToTemplateBuilder() {
+    // Store PDF text in sessionStorage so the template builder can use it
+    if (detection?.extractedText) {
+      sessionStorage.setItem('templateBuilderText', detection.extractedText);
+    }
+    if (detection?.institution) {
+      sessionStorage.setItem('templateBuilderInstitution', detection.institution);
+    }
+    if (file?.name) {
+      sessionStorage.setItem('templateBuilderFileName', file.name);
+    }
+    router.push(`/h/${householdId}/settings?tab=parsers&new=1`);
   }
 
   return (
@@ -374,6 +390,18 @@ export default function ImportPage() {
             </div>
             <p className="text-sm text-text-secondary">{error}</p>
           </div>
+
+          {/* Offer template creation when parsing/detection failed on a PDF */}
+          {detection?.extractedText && (
+            <button
+              onClick={goToTemplateBuilder}
+              className="w-full px-4 py-3 bg-bg-surface hover:bg-bg-surface-hover border border-border text-text-primary rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <Wrench className="w-4 h-4 text-accent-info" />
+              Crear template de parseo para este formato
+            </button>
+          )}
+
           <button
             onClick={reset}
             className="w-full px-4 py-2.5 bg-accent-info hover:bg-accent-info/90 text-white rounded-md text-sm font-medium transition-colors"

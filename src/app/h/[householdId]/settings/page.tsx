@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import ParserTemplatesTab from './parser-templates';
@@ -20,8 +20,11 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function SettingsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const householdId = params.householdId as string;
-  const [activeTab, setActiveTab] = useState<Tab>('categories');
+  const initialTab = (searchParams.get('tab') as Tab) || 'categories';
+  const autoNew = searchParams.get('new') === '1';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [data, setData] = useState<Record<string, unknown[]>>({});
   const [loading, setLoading] = useState(false);
 
@@ -86,7 +89,7 @@ export default function SettingsPage() {
 
       {/* Parsers tab — separate component */}
       {activeTab === 'parsers' && (
-        <ParserTemplatesTab householdId={householdId} />
+        <ParserTemplatesTab householdId={householdId} autoNew={autoNew} />
       )}
 
       {/* Content — other tabs */}
