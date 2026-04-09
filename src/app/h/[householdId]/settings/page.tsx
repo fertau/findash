@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import ParserTemplatesTab from './parser-templates';
 
-type Tab = 'categories' | 'rules' | 'exclusions' | 'rates' | 'members' | 'cards';
+type Tab = 'categories' | 'rules' | 'exclusions' | 'rates' | 'members' | 'cards' | 'parsers';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'categories', label: 'Categorías' },
@@ -14,6 +15,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'rates', label: 'Tipo de cambio' },
   { id: 'members', label: 'Miembros' },
   { id: 'cards', label: 'Tarjetas' },
+  { id: 'parsers', label: 'Parsers' },
 ];
 
 export default function SettingsPage() {
@@ -30,6 +32,7 @@ export default function SettingsPage() {
     rates: `/api/households/${householdId}/exchange-rates`,
     members: `/api/households/${householdId}/members`,
     cards: `/api/households/${householdId}/cards`,
+    parsers: `/api/households/${householdId}/parser-templates`,
   };
 
   const dataKeys: Record<Tab, string> = {
@@ -39,6 +42,7 @@ export default function SettingsPage() {
     rates: 'rates',
     members: 'members',
     cards: 'cards',
+    parsers: 'parsers',
   };
 
   const fetchData = useCallback(async () => {
@@ -80,7 +84,13 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Content */}
+      {/* Parsers tab — separate component */}
+      {activeTab === 'parsers' && (
+        <ParserTemplatesTab householdId={householdId} />
+      )}
+
+      {/* Content — other tabs */}
+      {activeTab !== 'parsers' && (
       <div className="bg-bg-surface rounded-lg border border-border overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-text-muted">Cargando...</div>
@@ -200,6 +210,7 @@ export default function SettingsPage() {
           </table>
         )}
       </div>
+      )}
     </div>
   );
 }

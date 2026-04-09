@@ -34,6 +34,19 @@ export async function POST(request: Request, { params }: Params) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const detection = detectSource(buffer, file.name, file.type);
 
+    // Extract PDF text for template builder testing
+    let extractedText: string | undefined;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') {
+      try {
+        const pdfParse = (await import('pdf-parse')).default;
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text;
+      } catch {
+        // PDF text extraction failed — not critical
+      }
+    }
+
     // Check if this fingerprint matches a previously saved source
     let matchedSource = null;
     if (detection.fingerprintHash) {
@@ -48,13 +61,13 @@ export async function POST(request: Request, { params }: Params) {
         ...detection,
         matchedSourceId: matchedSource.id,
         matchedSourceLabel: matchedSource.label,
-        // Override detection with saved source data
         parserKey: matchedSource.parserKey,
         institution: matchedSource.institution,
         documentType: matchedSource.documentType,
         confidence: 'high' as const,
         isKnownSource: true,
         householdSources,
+        extractedText,
       });
     }
 
@@ -62,6 +75,7 @@ export async function POST(request: Request, { params }: Params) {
       ...detection,
       isKnownSource: false,
       householdSources,
+      extractedText,
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
