@@ -26,13 +26,17 @@ export async function createParserTemplate(
 ): Promise<ParserTemplate> {
   const now = new Date().toISOString();
   const ref = parserTemplatesCollection(householdId).doc();
+  // Strip undefined values — Firestore rejects them
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
   const template: ParserTemplate = {
-    ...data,
+    ...clean,
     id: ref.id,
     householdId,
     createdAt: now,
     updatedAt: now,
-  };
+  } as ParserTemplate;
   await ref.set(template);
   return template;
 }
@@ -42,8 +46,11 @@ export async function updateParserTemplate(
   templateId: string,
   data: Partial<Omit<ParserTemplate, 'id' | 'householdId' | 'createdAt'>>
 ): Promise<void> {
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
   await parserTemplatesCollection(householdId).doc(templateId).update({
-    ...data,
+    ...clean,
     updatedAt: new Date().toISOString(),
   });
 }

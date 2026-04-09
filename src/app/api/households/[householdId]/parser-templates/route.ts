@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: Params) {
     householdId,
     label: body.label,
     institution: body.institution,
-    documentType: body.documentType,
+    documentType: body.documentType || (body.negateAmounts ? 'Tarjeta' : 'Cuenta'),
     fingerprints: body.fingerprints || [],
     sectionStart: body.sectionStart,
     sectionEnd: body.sectionEnd,

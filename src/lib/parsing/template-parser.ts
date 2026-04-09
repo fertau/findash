@@ -485,7 +485,7 @@ export function validateTemplate(template: Partial<ParserTemplate>): TemplateVal
 
   if (!template.label?.trim()) errors.push({ field: 'label', message: 'Se requiere un nombre' });
   if (!template.institution?.trim()) errors.push({ field: 'institution', message: 'Se requiere la institución' });
-  if (!template.documentType?.trim()) errors.push({ field: 'documentType', message: 'Se requiere el tipo de documento' });
+  // documentType is optional — auto-inferred from negateAmounts if not provided
   if (!template.dateFormat) errors.push({ field: 'dateFormat', message: 'Se requiere el formato de fecha' });
   if (!template.defaultCurrency) errors.push({ field: 'defaultCurrency', message: 'Se requiere la moneda' });
 
