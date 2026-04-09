@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Upload, FileText, CheckCircle, XCircle,
   Loader2, Search, Building2, CreditCard, Landmark, FileSpreadsheet, Pencil, Wrench,
@@ -103,6 +103,15 @@ export default function ImportPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [householdTemplates, setHouseholdTemplates] = useState<Array<{ id: string; label: string; institution: string }>>([]);
+
+  // Fetch household parser templates on mount
+  useEffect(() => {
+    fetch(`/api/households/${householdId}/parser-templates`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => setHouseholdTemplates(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [householdId]);
 
   const effectiveParser = detection
     ? (parserOverride || autoResolveParser(detection))
@@ -308,6 +317,17 @@ export default function ImportPage() {
                           {detection.householdSources.map((s) => (
                             <option key={`hs-${s.id}`} value={s.parserKey}>
                               {s.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+
+                      {/* Household custom templates */}
+                      {householdTemplates.length > 0 && (
+                        <optgroup label="Mis templates">
+                          {householdTemplates.map((t) => (
+                            <option key={`tpl-${t.id}`} value={`template_${t.id}`}>
+                              {t.label} ({t.institution})
                             </option>
                           ))}
                         </optgroup>

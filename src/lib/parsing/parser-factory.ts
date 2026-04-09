@@ -11,6 +11,9 @@ const PARSER_SERVICE_URL = process.env.PARSER_SERVICE_URL;
  * Resolve a sourceId or parserKey to a valid parser key.
  */
 function resolveParserKey(sourceIdOrParserKey: string): string {
+  // Household template keys pass through directly
+  if (sourceIdOrParserKey.startsWith('template_')) return sourceIdOrParserKey;
+
   const source = getBankSource(sourceIdOrParserKey);
   if (source) return source.parserKey;
 
