@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Camera, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Lock, ShoppingCart, Zap, CreditCard } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { Currency } from '@/lib/db/types';
 import type { MonthlySnapshot, BucketItem } from '@/lib/engine/monthly-snapshot';
 
@@ -32,29 +35,29 @@ function BucketSection({ title, icon: Icon, items, currency, color }: {
 }) {
   const total = items.reduce((s, i) => s + i.amount, 0);
   return (
-    <div className="bg-bg-surface rounded-lg border border-border overflow-hidden">
-      <div className="p-4 flex items-center justify-between border-b border-border">
+    <Card>
+      <CardHeader className="flex-row items-center justify-between border-b">
         <div className="flex items-center gap-2">
           <Icon className={cn('w-4 h-4', color)} />
-          <h3 className="text-sm font-medium text-text-primary">{title}</h3>
+          <CardTitle className="text-sm">{title}</CardTitle>
         </div>
         <span className={cn('text-sm font-semibold tabular-nums', color)}>{fmt(total, currency)}</span>
-      </div>
+      </CardHeader>
       <div className="divide-y divide-border/50">
         {items.map((item) => (
-          <div key={item.categoryId} className="px-4 py-3 flex items-center justify-between hover:bg-bg-surface-hover transition-colors">
+          <div key={item.categoryId} className="px-4 py-3 flex items-center justify-between hover:bg-muted transition-colors">
             <div>
-              <p className="text-sm text-text-primary">{item.categoryName}</p>
-              <p className="text-xs text-text-muted">{item.classificationReason}</p>
+              <p className="text-sm text-foreground">{item.categoryName}</p>
+              <p className="text-xs text-muted-foreground">{item.classificationReason}</p>
             </div>
-            <span className="text-sm tabular-nums text-text-primary">{fmt(item.amount, currency)}</span>
+            <span className="text-sm tabular-nums text-foreground">{fmt(item.amount, currency)}</span>
           </div>
         ))}
         {items.length === 0 && (
-          <div className="px-4 py-6 text-center text-text-muted text-sm">Sin datos</div>
+          <div className="px-4 py-6 text-center text-muted-foreground text-sm">Sin datos</div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -92,9 +95,9 @@ export default function SnapshotPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-8 bg-bg-surface rounded animate-pulse w-64" />
-        <div className="h-32 bg-bg-surface rounded animate-pulse" />
-        <div className="h-48 bg-bg-surface rounded animate-pulse" />
+        <div className="h-8 bg-card rounded-lg animate-pulse w-64" />
+        <div className="h-32 bg-card rounded-lg animate-pulse" />
+        <div className="h-48 bg-card rounded-lg animate-pulse" />
       </div>
     );
   }
@@ -102,9 +105,9 @@ export default function SnapshotPage() {
   if (!snapshot) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <Camera className="w-12 h-12 text-text-muted mb-4" />
-        <h2 className="text-xl font-semibold text-text-primary mb-2">Sin datos suficientes</h2>
-        <p className="text-sm text-text-secondary">Importá al menos 3 meses de resúmenes para ver tu panorama.</p>
+        <Camera className="w-12 h-12 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold text-foreground mb-2">Sin datos suficientes</h2>
+        <p className="text-sm text-muted-foreground">Importá al menos 3 meses de resúmenes para ver tu panorama.</p>
       </div>
     );
   }
@@ -116,94 +119,104 @@ export default function SnapshotPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(shiftPeriod(period, -1))} className="p-1.5 hover:bg-bg-surface-hover rounded-md">
-            <ChevronLeft className="w-5 h-5 text-text-secondary" />
-          </button>
-          <h1 className="text-xl font-semibold text-text-primary">
+          <Button variant="ghost" size="icon-sm" onClick={() => navigate(shiftPeriod(period, -1))}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-xl font-semibold text-foreground">
             Panorama — {PERIOD_NAMES[month]} {period.split('-')[0]}
           </h1>
-          <button onClick={() => navigate(shiftPeriod(period, 1))} className="p-1.5 hover:bg-bg-surface-hover rounded-md">
-            <ChevronRight className="w-5 h-5 text-text-secondary" />
-          </button>
+          <Button variant="ghost" size="icon-sm" onClick={() => navigate(shiftPeriod(period, 1))}>
+            <ChevronRight className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-bg-surface rounded-lg border border-border p-4">
-          <p className="text-xs text-text-muted uppercase">Costo base</p>
-          <p className="text-lg font-bold text-text-primary tabular-nums">{fmt(snapshot.baseCost, currency)}</p>
-        </div>
-        <div className="bg-bg-surface rounded-lg border border-border p-4">
-          <p className="text-xs text-text-muted uppercase">Variables</p>
-          <p className="text-lg font-bold text-accent-warning tabular-nums">{fmt(snapshot.variableCost, currency)}</p>
-        </div>
-        <div className="bg-bg-surface rounded-lg border border-border p-4">
-          <p className="text-xs text-text-muted uppercase">Extraordinarios</p>
-          <p className="text-lg font-bold text-accent-negative tabular-nums">{fmt(snapshot.extraordinaryCost, currency)}</p>
-        </div>
-        <div className="bg-bg-surface rounded-lg border border-border p-4">
-          <p className="text-xs text-text-muted uppercase">Total</p>
-          <p className="text-lg font-bold text-text-primary tabular-nums">{fmt(snapshot.totalCost, currency)}</p>
-          {snapshot.deltaVsBase > 0 && (
-            <p className="text-xs text-accent-negative mt-0.5">
-              +{fmt(snapshot.deltaVsBase, currency)} sobre base
-            </p>
-          )}
-        </div>
+        <Card size="sm">
+          <CardContent>
+            <p className="text-xs text-muted-foreground uppercase">Costo base</p>
+            <p className="text-lg font-bold text-foreground tabular-nums mt-1">{fmt(snapshot.baseCost, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardContent>
+            <p className="text-xs text-muted-foreground uppercase">Variables</p>
+            <p className="text-lg font-bold text-chart-3 tabular-nums mt-1">{fmt(snapshot.variableCost, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardContent>
+            <p className="text-xs text-muted-foreground uppercase">Extraordinarios</p>
+            <p className="text-lg font-bold text-destructive tabular-nums mt-1">{fmt(snapshot.extraordinaryCost, currency)}</p>
+          </CardContent>
+        </Card>
+        <Card size="sm">
+          <CardContent>
+            <p className="text-xs text-muted-foreground uppercase">Total</p>
+            <p className="text-lg font-bold text-foreground tabular-nums mt-1">{fmt(snapshot.totalCost, currency)}</p>
+            {snapshot.deltaVsBase > 0 && (
+              <p className="text-xs text-destructive mt-0.5">
+                +{fmt(snapshot.deltaVsBase, currency)} sobre base
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Trend */}
       {snapshot.trend.baseCostChange !== 0 && (
-        <div className="bg-bg-surface rounded-lg border border-border p-4 flex items-center gap-3">
-          {snapshot.trend.baseCostChange > 0
-            ? <TrendingUp className="w-5 h-5 text-accent-negative" />
-            : <TrendingDown className="w-5 h-5 text-accent-positive" />
-          }
-          <p className="text-sm text-text-secondary">
-            Tu costo base {snapshot.trend.baseCostChange > 0 ? 'subió' : 'bajó'}{' '}
-            <span className="font-medium text-text-primary">{Math.abs(snapshot.trend.baseCostChange)}%</span>{' '}
-            vs hace 6 meses
-            {snapshot.trend.mainDrivers.length > 0 && (
-              <> ({snapshot.trend.mainDrivers.join(', ')})</>
-            )}
-          </p>
-        </div>
+        <Card>
+          <CardContent className="flex items-center gap-3">
+            {snapshot.trend.baseCostChange > 0
+              ? <TrendingUp className="w-5 h-5 text-destructive" />
+              : <TrendingDown className="w-5 h-5 text-chart-2" />
+            }
+            <p className="text-sm text-muted-foreground">
+              Tu costo base {snapshot.trend.baseCostChange > 0 ? 'subió' : 'bajó'}{' '}
+              <span className="font-medium text-foreground">{Math.abs(snapshot.trend.baseCostChange)}%</span>{' '}
+              vs hace 6 meses
+              {snapshot.trend.mainDrivers.length > 0 && (
+                <> ({snapshot.trend.mainDrivers.join(', ')})</>
+              )}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Buckets */}
-      <BucketSection title="No negociables" icon={Lock} items={snapshot.nonNegotiables} currency={currency} color="text-accent-info" />
-      <BucketSection title="Variables" icon={ShoppingCart} items={snapshot.variables} currency={currency} color="text-accent-warning" />
+      <BucketSection title="No negociables" icon={Lock} items={snapshot.nonNegotiables} currency={currency} color="text-primary" />
+      <BucketSection title="Variables" icon={ShoppingCart} items={snapshot.variables} currency={currency} color="text-chart-3" />
 
       {snapshot.extraordinaries.length > 0 && (
-        <BucketSection title="Extraordinarios" icon={Zap} items={snapshot.extraordinaries} currency={currency} color="text-accent-negative" />
+        <BucketSection title="Extraordinarios" icon={Zap} items={snapshot.extraordinaries} currency={currency} color="text-destructive" />
       )}
 
       {snapshot.activeInstallments.length > 0 && (
-        <div className="bg-bg-surface rounded-lg border border-border overflow-hidden">
-          <div className="p-4 flex items-center justify-between border-b border-border">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between border-b">
             <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-accent-info" />
-              <h3 className="text-sm font-medium text-text-primary">Cuotas activas</h3>
+              <CreditCard className="w-4 h-4 text-primary" />
+              <CardTitle className="text-sm">Cuotas activas</CardTitle>
             </div>
-            <span className="text-sm font-semibold tabular-nums text-accent-info">
+            <span className="text-sm font-semibold tabular-nums text-primary">
               {fmt(snapshot.installmentCost, currency)}
             </span>
-          </div>
+          </CardHeader>
           <div className="divide-y divide-border/50">
             {snapshot.activeInstallments.map((inst) => (
               <div key={inst.groupId} className="px-4 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-text-primary">{inst.description}</p>
-                  <p className="text-xs text-text-muted">
+                  <p className="text-sm text-foreground">{inst.description}</p>
+                  <p className="text-xs text-muted-foreground">
                     Cuota {inst.current}/{inst.total} — finaliza {inst.estimatedEnd}
                   </p>
                 </div>
-                <span className="text-sm tabular-nums text-text-primary">{fmt(inst.currentAmount, currency)}</span>
+                <span className="text-sm tabular-nums text-foreground">{fmt(inst.currentAmount, currency)}</span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

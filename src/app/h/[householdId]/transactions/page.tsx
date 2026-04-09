@@ -2,8 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { Transaction, Currency } from '@/lib/db/types';
 
 function formatAmount(amount: number, currency: Currency): string {
@@ -55,86 +59,89 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-text-primary">Transacciones</h1>
-        <span className="text-sm text-text-muted">{total} resultados</span>
+        <h1 className="text-xl font-semibold text-foreground">Transacciones</h1>
+        <span className="text-sm text-muted-foreground">{total} resultados</span>
       </div>
 
-      {/* Table */}
-      <div className="bg-bg-surface rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-text-muted text-xs uppercase">
-              <th className="text-left p-3 font-medium">Fecha</th>
-              <th className="text-left p-3 font-medium">Descripción</th>
-              <th className="text-left p-3 font-medium">Categoría</th>
-              <th className="text-right p-3 font-medium">Monto</th>
-              <th className="text-center p-3 font-medium">Cuota</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              Array.from({ length: 10 }).map((_, i) => (
-                <tr key={i} className="border-b border-border/50">
-                  <td colSpan={5} className="p-3">
-                    <div className="h-4 bg-bg-surface-hover rounded animate-pulse" />
-                  </td>
-                </tr>
-              ))
-            ) : transactions.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-text-muted">
-                  No hay transacciones para este período
-                </td>
-              </tr>
-            ) : (
-              transactions.map((tx) => (
-                <tr key={tx.id} className="border-b border-border/50 hover:bg-bg-surface-hover transition-colors">
-                  <td className="p-3 text-text-secondary tabular-nums whitespace-nowrap">{tx.date}</td>
-                  <td className="p-3 text-text-primary truncate max-w-xs">{tx.description}</td>
-                  <td className="p-3">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-bg-surface-hover text-text-secondary">
-                      {tx.categoryId.replace('cat_', '').replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td className="p-3 text-right tabular-nums text-text-primary whitespace-nowrap">
-                    {formatAmount(tx.amount, tx.currency)}
-                  </td>
-                  <td className="p-3 text-center">
-                    {tx.installment && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-accent-info/10 text-accent-info tabular-nums">
-                        {tx.installment.current}/{tx.installment.total}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs uppercase">Fecha</TableHead>
+                <TableHead className="text-xs uppercase">Descripción</TableHead>
+                <TableHead className="text-xs uppercase">Categoría</TableHead>
+                <TableHead className="text-xs uppercase text-right">Monto</TableHead>
+                <TableHead className="text-xs uppercase text-center">Cuota</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={5}>
+                      <div className="h-4 bg-muted rounded animate-pulse" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : transactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="p-8 text-center text-muted-foreground">
+                    No hay transacciones para este período
+                  </TableCell>
+                </TableRow>
+              ) : (
+                transactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell className="text-muted-foreground tabular-nums">{tx.date}</TableCell>
+                    <TableCell className="text-foreground truncate max-w-xs">{tx.description}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {tx.categoryId.replace('cat_', '').replace(/_/g, ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-foreground">
+                      {formatAmount(tx.amount, tx.currency)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {tx.installment && (
+                        <Badge variant="outline" className="tabular-nums">
+                          {tx.installment.current}/{tx.installment.total}
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between p-3 border-t border-border">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" /> Anterior
-            </button>
-            <span className="text-xs text-text-muted">
-              Página {page} de {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary disabled:opacity-50 transition-colors"
-            >
-              Siguiente <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft className="w-4 h-4" /> Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Página {page} de {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Siguiente <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

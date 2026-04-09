@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { getClientAuth } from '@/lib/firebase/client';
 import { useRouter } from 'next/navigation';
-import { LogIn, Mail, Globe } from 'lucide-react';
+import { Mail, Globe } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -82,78 +87,73 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-primary">
-      <div className="w-full max-w-sm p-8 bg-bg-surface rounded-lg border border-border">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-text-primary">FinDash</h1>
-          <p className="text-sm text-text-secondary mt-1">Finanzas del hogar</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">FinDash</CardTitle>
+          <CardDescription>Finanzas del hogar</CardDescription>
+        </CardHeader>
 
-        {error && (
-          <div className="mb-4 p-3 bg-accent-negative/10 border border-accent-negative/20 rounded-md text-sm text-accent-negative">
-            {error}
+        <CardContent className="flex flex-col gap-4">
+          {error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleEmailLogin} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="tu@email.com"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase">
+                Contraseña
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+              />
+            </div>
+
+            <Button type="submit" disabled={loading} size="lg" className="w-full">
+              <Mail className="w-4 h-4" />
+              {loading ? 'Ingresando...' : 'Ingresar con email'}
+            </Button>
+          </form>
+
+          <div className="relative flex items-center gap-3">
+            <Separator className="flex-1" />
+            <span className="text-xs text-muted-foreground">o</span>
+            <Separator className="flex-1" />
           </div>
-        )}
 
-        <form onSubmit={handleEmailLogin} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-xs font-medium text-text-secondary uppercase mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-info focus:ring-offset-2 focus:ring-offset-bg-surface"
-              placeholder="tu@email.com"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-xs font-medium text-text-secondary uppercase mb-1">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-info focus:ring-offset-2 focus:ring-offset-bg-surface"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button
-            type="submit"
+          <Button
+            variant="outline"
+            size="lg"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-info hover:bg-accent-info/90 text-white rounded-md text-sm font-medium disabled:opacity-50 transition-colors"
+            onClick={handleGoogleLogin}
+            className="w-full"
           >
-            <Mail className="w-4 h-4" />
-            {loading ? 'Ingresando...' : 'Ingresar con email'}
-          </button>
-        </form>
-
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-bg-surface px-2 text-text-muted">o</span>
-          </div>
-        </div>
-
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-bg-primary hover:bg-bg-surface-hover border border-border text-text-primary rounded-md text-sm font-medium disabled:opacity-50 transition-colors"
-        >
-          <Globe className="w-4 h-4" />
-          Ingresar con Google
-        </button>
-      </div>
+            <Globe className="w-4 h-4" />
+            Ingresar con Google
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

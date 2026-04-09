@@ -6,8 +6,11 @@ import {
   Loader2, Search, Building2, CreditCard, Landmark, FileSpreadsheet, Pencil, Wrench,
 } from 'lucide-react';
 import { AVAILABLE_PARSERS } from '@/config/banks';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { useParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 type Step = 'upload' | 'detecting' | 'confirm' | 'importing' | 'success' | 'error';
 
@@ -69,7 +72,7 @@ function DetectionIcon({ detection }: { detection: DetectionResult }) {
   if (detection.documentType && /cuenta|bank/i.test(detection.documentType)) {
     return <Landmark className="w-9 h-9 text-accent-info" />;
   }
-  return <FileSpreadsheet className="w-9 h-9 text-text-muted" />;
+  return <FileSpreadsheet className="w-9 h-9 text-muted-foreground" />;
 }
 
 /**
@@ -209,7 +212,7 @@ export default function ImportPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-xl font-semibold text-text-primary">Importar resumen</h1>
+      <h1 className="text-xl font-semibold text-foreground">Importar resumen</h1>
 
       {/* Step 1: Upload */}
       {step === 'upload' && (
@@ -219,7 +222,7 @@ export default function ImportPage() {
           onDrop={handleDrop}
           className={cn(
             'border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer',
-            dragActive ? 'border-accent-info bg-accent-info/5' : 'border-border hover:border-text-muted'
+            dragActive ? 'border-accent-info bg-accent-info/5' : 'border-border hover:border-muted-foreground'
           )}
           onClick={() => document.getElementById('file-input')?.click()}
         >
@@ -231,9 +234,9 @@ export default function ImportPage() {
             onChange={handleFileSelect}
           />
           <div className="flex flex-col items-center gap-3">
-            <Upload className="w-10 h-10 text-text-muted" />
-            <p className="text-sm text-text-secondary">Arrastrá un archivo o hacé click para seleccionar</p>
-            <p className="text-xs text-text-muted">PDF, CSV, XLS, XLSX</p>
+            <Upload className="w-10 h-10 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Arrastrá un archivo o hacé click para seleccionar</p>
+            <p className="text-xs text-muted-foreground/70">PDF, CSV, XLS, XLSX</p>
           </div>
         </div>
       )}
@@ -242,8 +245,8 @@ export default function ImportPage() {
       {step === 'detecting' && (
         <div className="flex flex-col items-center gap-4 py-12">
           <Search className="w-10 h-10 text-accent-info animate-pulse" />
-          <p className="text-sm text-text-secondary">Analizando archivo...</p>
-          <p className="text-xs text-text-muted">{file?.name}</p>
+          <p className="text-sm text-muted-foreground">Analizando archivo...</p>
+          <p className="text-xs text-muted-foreground/70">{file?.name}</p>
         </div>
       )}
 
@@ -253,82 +256,91 @@ export default function ImportPage() {
         return (
           <div className="space-y-4">
             {/* Detection card */}
-            <div className="rounded-lg border border-border bg-bg-surface p-5">
-              <div className="flex items-start gap-4">
-                <DetectionIcon detection={detection} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-lg font-semibold text-text-primary">{summary.title}</p>
-                  <p className="text-sm text-text-muted mt-0.5">{summary.subtitle}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-xs text-text-muted">
-                      {file?.name} · {file && `${(file.size / 1024).toFixed(0)} KB`}
-                    </span>
+            <Card>
+              <CardContent>
+                <div className="flex items-start gap-4">
+                  <DetectionIcon detection={detection} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-lg font-semibold text-foreground">{summary.title}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{summary.subtitle}</p>
+                    <div className="flex items-center gap-3 mt-2">
+                      <Badge variant="outline">
+                        {file?.name} · {file && `${(file.size / 1024).toFixed(0)} KB`}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={reset}
-                  className="text-xs text-accent-info hover:underline flex-shrink-0 mt-1"
-                >
-                  Cambiar archivo
-                </button>
-              </div>
-
-              {/* Correction toggle — collapsed by default */}
-              {!isEditing && (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-1.5 mt-4 text-xs text-text-muted hover:text-text-secondary transition-colors"
-                >
-                  <Pencil className="w-3 h-3" />
-                  Corregir detección
-                </button>
-              )}
-
-              {isEditing && (
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <label className="block text-xs font-medium text-text-muted mb-2">
-                    Formato de parseo
-                  </label>
-                  <select
-                    value={parserOverride || autoResolveParser(detection)}
-                    onChange={(e) => setParserOverride(e.target.value)}
-                    className="w-full px-3 py-2 bg-bg-primary border border-border rounded-md text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent-info"
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={reset}
+                    className="flex-shrink-0 mt-1"
                   >
-                    {/* Previously used household sources */}
-                    {detection.householdSources && detection.householdSources.length > 0 && (
-                      <optgroup label="Fuentes anteriores">
-                        {detection.householdSources.map((s) => (
-                          <option key={`hs-${s.id}`} value={s.parserKey}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-
-                    {/* All available parsers */}
-                    {AVAILABLE_PARSERS.map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => { setParserOverride(null); setIsEditing(false); }}
-                    className="mt-2 text-xs text-text-muted hover:text-text-secondary"
-                  >
-                    Cancelar
-                  </button>
+                    Cambiar archivo
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {/* Correction toggle — collapsed by default */}
+                {!isEditing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                    className="mt-4 text-muted-foreground"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Corregir detección
+                  </Button>
+                )}
+
+                {isEditing && (
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                    <label className="block text-xs font-medium text-muted-foreground mb-2">
+                      Formato de parseo
+                    </label>
+                    <select
+                      value={parserOverride || autoResolveParser(detection)}
+                      onChange={(e) => setParserOverride(e.target.value)}
+                      className="w-full px-3 py-2 bg-background border border-input rounded-md text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      {/* Previously used household sources */}
+                      {detection.householdSources && detection.householdSources.length > 0 && (
+                        <optgroup label="Fuentes anteriores">
+                          {detection.householdSources.map((s) => (
+                            <option key={`hs-${s.id}`} value={s.parserKey}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+
+                      {/* All available parsers */}
+                      {AVAILABLE_PARSERS.map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setParserOverride(null); setIsEditing(false); }}
+                      className="mt-2 text-muted-foreground"
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Import button */}
-            <button
+            <Button
+              size="lg"
               onClick={handleImport}
-              className="w-full px-4 py-3 bg-accent-info hover:bg-accent-info/90 text-white rounded-md text-sm font-medium transition-colors"
+              className="w-full"
             >
               Importar
-            </button>
+            </Button>
           </div>
         );
       })()}
@@ -337,77 +349,93 @@ export default function ImportPage() {
       {step === 'importing' && (
         <div className="flex flex-col items-center gap-4 py-12">
           <Loader2 className="w-10 h-10 text-accent-info animate-spin" />
-          <p className="text-sm text-text-secondary">Procesando archivo...</p>
+          <p className="text-sm text-muted-foreground">Procesando archivo...</p>
         </div>
       )}
 
       {/* Step 5: Success */}
       {step === 'success' && result && (
         <div className="space-y-4">
-          <div className="bg-bg-surface rounded-lg border border-border p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <CheckCircle className="w-6 h-6 text-accent-positive" />
-              <h2 className="text-lg font-semibold text-text-primary">Importación exitosa</h2>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-text-muted">Transacciones importadas</p>
-                <p className="text-xl font-bold text-text-primary tabular-nums">{result.transactionsImported}</p>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-accent-positive" />
+                Importación exitosa
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <Card size="sm" className="bg-muted/50">
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Transacciones importadas</p>
+                    <p className="text-xl font-bold text-foreground tabular-nums">{result.transactionsImported}</p>
+                  </CardContent>
+                </Card>
+                <Card size="sm" className="bg-muted/50">
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">Duplicados omitidos</p>
+                    <p className="text-xl font-bold text-muted-foreground tabular-nums">{result.duplicatesSkipped}</p>
+                  </CardContent>
+                </Card>
               </div>
-              <div>
-                <p className="text-text-muted">Duplicados omitidos</p>
-                <p className="text-xl font-bold text-text-secondary tabular-nums">{result.duplicatesSkipped}</p>
-              </div>
-            </div>
 
-            {result.errors.length > 0 && (
-              <div className="mt-4 p-3 bg-accent-warning/10 border border-accent-warning/20 rounded-md">
-                <p className="text-xs font-medium text-accent-warning mb-1">{result.errors.length} advertencias</p>
-                {result.errors.slice(0, 5).map((err, i) => (
-                  <p key={i} className="text-xs text-text-muted">{err}</p>
-                ))}
-              </div>
-            )}
-          </div>
+              {result.errors.length > 0 && (
+                <div className="mt-4 p-3 bg-accent-warning/10 border border-accent-warning/20 rounded-md">
+                  <p className="text-xs font-medium text-accent-warning mb-1">
+                    <Badge variant="destructive" className="mr-2">{result.errors.length}</Badge>
+                    advertencias
+                  </p>
+                  {result.errors.slice(0, 5).map((err, i) => (
+                    <p key={i} className="text-xs text-muted-foreground">{err}</p>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          <button
+          <Button
+            variant="outline"
             onClick={reset}
-            className="w-full px-4 py-2.5 bg-bg-surface hover:bg-bg-surface-hover border border-border text-text-primary rounded-md text-sm font-medium transition-colors"
+            className="w-full"
           >
             Importar otro archivo
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Step 6: Error */}
       {step === 'error' && (
         <div className="space-y-4">
-          <div className="bg-bg-surface rounded-lg border border-accent-negative/20 p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <XCircle className="w-6 h-6 text-accent-negative" />
-              <h2 className="text-lg font-semibold text-text-primary">Error</h2>
-            </div>
-            <p className="text-sm text-text-secondary">{error}</p>
-          </div>
+          <Card className="border-destructive/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <XCircle className="w-6 h-6 text-destructive" />
+                Error
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{error}</p>
+            </CardContent>
+          </Card>
 
           {/* Offer template creation when parsing/detection failed on a PDF */}
           {detection?.extractedText && (
-            <button
+            <Button
+              variant="outline"
               onClick={goToTemplateBuilder}
-              className="w-full px-4 py-3 bg-bg-surface hover:bg-bg-surface-hover border border-border text-text-primary rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              className="w-full"
             >
               <Wrench className="w-4 h-4 text-accent-info" />
               Crear template de parseo para este formato
-            </button>
+            </Button>
           )}
 
-          <button
+          <Button
             onClick={reset}
-            className="w-full px-4 py-2.5 bg-accent-info hover:bg-accent-info/90 text-white rounded-md text-sm font-medium transition-colors"
+            className="w-full"
           >
             Intentar de nuevo
-          </button>
+          </Button>
         </div>
       )}
     </div>

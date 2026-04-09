@@ -1,14 +1,8 @@
 import type { Metadata } from 'next';
-import { Inter, Geist } from 'next/font/google';
+import { Geist } from 'next/font/google';
 import './globals.css';
-import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-});
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: 'FinDash',
@@ -21,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={cn("font-sans", geist.variable)}>
-      <body className="font-[family-name:var(--font-inter)]">{children}</body>
+    <html lang="es" className={`font-sans ${geist.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }
