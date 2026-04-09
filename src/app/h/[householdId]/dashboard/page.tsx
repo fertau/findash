@@ -30,6 +30,14 @@ function generatePeriods(current: string, count: number): string[] {
   return periods;
 }
 
+function shiftPeriodBack(period: string, months: number): string {
+  const [y, m] = period.split('-').map(Number);
+  let nm = m - months;
+  let ny = y;
+  while (nm <= 0) { nm += 12; ny--; }
+  return `${ny}-${String(nm).padStart(2, '0')}`;
+}
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -39,18 +47,33 @@ export default async function DashboardPage({ params, searchParams }: Props) {
   const sp = await searchParams;
   await getServerUser();
 
-  const period = sp.period || getCurrentPeriod();
-  const baseCurrency = (sp.currency as Currency) || 'USD';
+  let period = sp.period || getCurrentPeriod();
+  const baseCurrency = (sp.currency as Currency) || 'ARS';
 
   const household = await getHousehold(householdId);
 
   // Load data in parallel
-  const [transactions, categories, members, rates] = await Promise.all([
+  let [transactions, categories, members, rates] = await Promise.all([
     getTransactionsForDashboard(householdId, period),
     getCategories(householdId),
     getMembers(householdId),
     getRatesForPeriod(householdId, period),
   ]);
+
+  // If no transactions for current period and user didn't pick one explicitly,
+  // fall back to the most recent period that has data (up to 12 months back)
+  if (transactions.length === 0 && !sp.period) {
+    for (let i = 1; i <= 12; i++) {
+      const fallbackPeriod = shiftPeriodBack(period, i);
+      const fallbackTxs = await getTransactionsForDashboard(householdId, fallbackPeriod);
+      if (fallbackTxs.length > 0) {
+        period = fallbackPeriod;
+        transactions = fallbackTxs;
+        rates = await getRatesForPeriod(householdId, period);
+        break;
+      }
+    }
+  }
 
   // Build lookups
   const catMap = new Map(categories.map((c) => [c.id, c]));

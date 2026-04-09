@@ -95,7 +95,20 @@ export default function CategorizationRulesManager({ householdId }: Props) {
       const res = await fetch(categoriesUrl);
       if (!res.ok) throw new Error('Failed to fetch categories');
       const data = await res.json();
-      setCategories(data.categories ?? []);
+      // Flatten the tree structure returned by the API
+      const tree = data.categories ?? [];
+      const flat: Category[] = [];
+      for (const node of tree) {
+        const { children, ...parent } = node as Category & { children?: unknown[] };
+        flat.push(parent);
+        if (Array.isArray(children)) {
+          for (const child of children) {
+            const { children: _, ...c } = child as Category & { children?: unknown[] };
+            flat.push(c as Category);
+          }
+        }
+      }
+      setCategories(flat);
     } catch {
       // silently fail
     }

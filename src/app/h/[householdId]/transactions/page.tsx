@@ -44,6 +44,7 @@ export default function TransactionsPage() {
     const params = new URLSearchParams();
     params.set('page', String(page));
     params.set('limit', String(limit));
+    params.set('isExcluded', 'false');
     if (period) params.set('period', period);
     if (categoryId) params.set('categoryId', categoryId);
 
@@ -61,11 +62,26 @@ export default function TransactionsPage() {
 
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
-  // Fetch categories for the categorize dialog
+  // Fetch categories for the categorize dialog (flatten tree)
   useEffect(() => {
     fetch(`/api/households/${householdId}/categories`)
       .then((res) => res.ok ? res.json() : { categories: [] })
-      .then((data) => setCategories(data.categories || []))
+      .then((data) => {
+        const tree = data.categories || [];
+        // Flatten the tree: parents + children
+        const flat: Category[] = [];
+        for (const node of tree) {
+          const { children, ...parent } = node;
+          flat.push(parent as Category);
+          if (Array.isArray(children)) {
+            for (const child of children) {
+              const { children: _, ...c } = child;
+              flat.push(c as Category);
+            }
+          }
+        }
+        setCategories(flat);
+      })
       .catch(() => {});
   }, [householdId]);
 
