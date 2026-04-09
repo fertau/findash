@@ -30,8 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -44,3 +45,12 @@ next-env.d.ts
 functions/python/venv/
 __pycache__/
 *.pyc
+
+# sample bank statements (personal financial data — keep locally for tests)
+public/*.pdf
+public/*.xls
+public/*.xlsx
+
+# scratch/test files
+test-parsers.mts
+test/data/

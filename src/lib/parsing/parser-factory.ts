@@ -3,6 +3,7 @@ import type { RawParsedTransaction, Currency } from '@/lib/db/types';
 import { parsePDFText, parsePDFTextAutoDetect } from './pdf-parsers';
 import { getParserTemplates } from '@/lib/db/parser-templates';
 import { templateToPlugin } from './template-parser';
+import { parseItauBankXLS } from './plugins/itau-bank';
 
 const PARSER_SERVICE_URL = process.env.PARSER_SERVICE_URL;
 
@@ -75,9 +76,37 @@ export async function parseFile(
     return { period, transactions };
   }
 
-  // XLSX/XLS: parse locally with basic extraction
+  // XLSX/XLS: parse locally with xlsx library
   if (parserKey === 'generic_xlsx' || ext === 'xlsx' || ext === 'xls') {
-    // For now, try to read as CSV (some "xlsx" exports are actually CSV)
+    // Try bank-specific XLS parser first
+    if (parserKey === 'itau_bank') {
+      const transactions = await parseItauBankXLS(fileBuffer);
+      return { period: inferPeriod(transactions), transactions };
+    }
+
+    // Generic XLS: try Itaú auto-detection, then generic extraction
+    const itauResult = await parseItauBankXLS(fileBuffer);
+    if (itauResult.length > 0) {
+      return { period: inferPeriod(itauResult), transactions: itauResult };
+    }
+
+    // Generic XLS: use xlsx to extract as CSV-like data
+    try {
+      const XLSX = await import('xlsx');
+      const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (sheet) {
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        const transactions = parseCSVAuto(csv, ',');
+        if (transactions.length > 0) {
+          return { period: inferPeriod(transactions), transactions };
+        }
+      }
+    } catch {
+      // xlsx parsing failed
+    }
+
+    // Last resort: try as text (some "xls" files are actually CSV)
     try {
       const content = fileBuffer.toString('utf-8');
       if (content.includes(',') || content.includes('\t')) {
@@ -87,17 +116,13 @@ export async function parseFile(
         }
       }
     } catch {
-      // Not text-based, fall through to Python service
+      // Not text-based
     }
 
-    // Real XLSX needs the Python service
-    if (!PARSER_SERVICE_URL) {
-      throw new Error(
-        'Los archivos Excel requieren el servicio de parseo (no configurado). ' +
-        'Convertí el archivo a CSV e importalo como CSV genérico.'
-      );
-    }
-    return callParserService(fileBuffer, fileName, parserKey, sourceId);
+    throw new Error(
+      'No se pudieron extraer transacciones del archivo Excel. ' +
+      'Probá exportándolo como CSV e importándolo como CSV genérico.'
+    );
   }
 
   // PDF and bank-specific: requires Python service

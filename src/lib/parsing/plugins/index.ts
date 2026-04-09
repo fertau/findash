@@ -18,6 +18,7 @@ import { galiciaCard } from './galicia-card';
 import { santanderCard } from './santander-card';
 import { santanderBank } from './santander-bank';
 import { itauVisa } from './itau-visa';
+import { itauBank } from './itau-bank';
 
 const BUILTIN_PLUGINS = [
   galiciaBank,
@@ -25,6 +26,7 @@ const BUILTIN_PLUGINS = [
   santanderCard,
   santanderBank,
   itauVisa,
+  itauBank,
 ];
 
 let registered = false;
@@ -38,4 +40,4 @@ export function registerBuiltinParsers(): void {
   registered = true;
 }
 
-export { galiciaBank, galiciaCard, santanderCard, santanderBank, itauVisa };
+export { galiciaBank, galiciaCard, santanderCard, santanderBank, itauVisa, itauBank };
