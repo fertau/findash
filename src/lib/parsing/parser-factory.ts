@@ -1,7 +1,23 @@
-import { getBankSource } from '@/config/banks';
+import { getBankSource, AVAILABLE_PARSERS } from '@/config/banks';
 import type { RawParsedTransaction } from '@/lib/db/types';
 
 const PARSER_SERVICE_URL = process.env.PARSER_SERVICE_URL || 'http://localhost:8080';
+
+/**
+ * Resolve a sourceId or parserKey to a valid parser key.
+ * Accepts: a DEFAULT_SOURCES id (e.g. "generic_csv"), or a parser key directly (e.g. "galicia_card").
+ */
+function resolveParserKey(sourceIdOrParserKey: string): string {
+  // First try as a source ID
+  const source = getBankSource(sourceIdOrParserKey);
+  if (source) return source.parserKey;
+
+  // Then try as a direct parser key
+  const parser = AVAILABLE_PARSERS.find((p) => p.key === sourceIdOrParserKey);
+  if (parser) return parser.key;
+
+  throw new Error(`Unknown source or parser: ${sourceIdOrParserKey}`);
+}
 
 /**
  * Call the Python parsing service to extract transactions from a file.
@@ -12,14 +28,11 @@ export async function parseFile(
   fileName: string,
   sourceId: string
 ): Promise<{ period: string; transactions: RawParsedTransaction[] }> {
-  const source = getBankSource(sourceId);
-  if (!source) {
-    throw new Error(`Unknown source: ${sourceId}`);
-  }
+  const parserKey = resolveParserKey(sourceId);
 
   const formData = new FormData();
   formData.append('file', new Blob([new Uint8Array(fileBuffer)]), fileName);
-  formData.append('parser_key', source.parserKey);
+  formData.append('parser_key', parserKey);
   formData.append('source_id', sourceId);
 
   const response = await fetch(`${PARSER_SERVICE_URL}/parse`, {
@@ -41,7 +54,7 @@ export async function parseFile(
       date: String(tx.date),
       description: String(tx.description),
       amount: Number(tx.amount),
-      currency: String(tx.currency || source.currencies[0] || 'ARS'),
+      currency: String(tx.currency || 'ARS'),
     })),
   };
 }

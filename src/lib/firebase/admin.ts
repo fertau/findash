@@ -98,6 +98,10 @@ export function installmentGroupsCollection(householdId: string) {
   return householdRef(householdId).collection('installment_groups');
 }
 
+export function importSourcesCollection(householdId: string) {
+  return householdRef(householdId).collection('import_sources');
+}
+
 export function usersCollection() {
   return getAdminDb().collection('users');
 }

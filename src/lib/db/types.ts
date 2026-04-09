@@ -132,6 +132,30 @@ export interface ExchangeRate {
   updatedAt: string;
 }
 
+// ─── Import Sources (learned from detection) ────────────────────────────────
+
+export interface ImportSource {
+  id: string;
+  /** Human-readable label, e.g. "Galicia - Tarjeta Visa" */
+  label: string;
+  /** Detected institution name, e.g. "Galicia" */
+  institution: string;
+  /** Document type, e.g. "Tarjeta de crédito", "Cuenta bancaria" */
+  documentType: string;
+  /** Parser key from AVAILABLE_PARSERS */
+  parserKey: string;
+  /** File format this source expects */
+  fileFormat: 'pdf' | 'csv' | 'xls' | 'xlsx' | 'tsv';
+  /** Currencies this source handles */
+  currencies: Currency[];
+  /** Number of times this source has been used (for sorting/confidence) */
+  usageCount: number;
+  /** Detection fingerprint hash — used to auto-match future imports */
+  fingerprintHash?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Import ──────────────────────────────────────────────────────────────────
 
 export type ImportStatus = 'processing' | 'success' | 'partial' | 'error' | 'skipped';

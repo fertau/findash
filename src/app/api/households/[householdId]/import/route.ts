@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { withHouseholdAuth } from '@/lib/auth/permissions';
 import { handleFileUpload } from '@/lib/parsing/upload';
 import { ImportUploadSchema } from '@/lib/db/schemas';
+import { getImportSourceByFingerprint, createImportSource, incrementSourceUsage } from '@/lib/db/import-sources';
+import { detectSource, detectFileFormat } from '@/lib/parsing/detector';
+import type { Currency } from '@/lib/db/types';
 
 interface Params {
   params: Promise<{ householdId: string }>;
@@ -49,6 +52,32 @@ export async function POST(request: Request, { params }: Params) {
       metadata.memberId,
       user.uid
     );
+
+    // Learn: save or increment the import source for future auto-detection
+    if (result.importBatch.status !== 'error') {
+      const detection = detectSource(buffer, file.name, file.type);
+      const fingerprintHash = detection.fingerprintHash;
+      const institution = (formData.get('institution') as string) || detection.institution || 'Desconocido';
+      const documentType = (formData.get('documentType') as string) || detection.documentType || 'Documento';
+      const parserKey = metadata.sourceId;
+
+      const existingSource = await getImportSourceByFingerprint(householdId, fingerprintHash);
+      if (existingSource) {
+        await incrementSourceUsage(householdId, existingSource.id);
+      } else {
+        const detectedFormat = detectFileFormat(file.name, file.type);
+        const fileFormat = detectedFormat === 'unknown' ? 'csv' as const : detectedFormat;
+        await createImportSource(householdId, {
+          label: `${institution} - ${documentType}`,
+          institution,
+          documentType,
+          parserKey,
+          fileFormat,
+          currencies: ['ARS'] as Currency[],
+          fingerprintHash,
+        });
+      }
+    }
 
     const status = result.importBatch.status === 'error' ? 500 : 200;
     return NextResponse.json(
