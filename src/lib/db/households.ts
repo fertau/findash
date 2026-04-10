@@ -165,7 +165,7 @@ export async function deleteCardMapping(
 
 // ─── Seed Default Data ───────────────────────────────────────────────────────
 
-async function seedDefaultData(householdId: string, createdBy: string): Promise<void> {
+export async function seedDefaultData(householdId: string, createdBy: string): Promise<void> {
   const db = getAdminDb();
   const now = nowISO();
 

@@ -35,6 +35,7 @@ export default function TransactionsPage() {
   const [categorizeDialogOpen, setCategorizeDialogOpen] = useState(false);
   const [categorizeTarget, setCategorizeTarget] = useState<Transaction | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [aiCategorizing, setAiCategorizing] = useState(false);
   const [aiBanner, setAiBanner] = useState<string | null>(null);
 
@@ -65,26 +66,51 @@ export default function TransactionsPage() {
   useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
 
   // Fetch categories for the categorize dialog (flatten tree)
+  // If none exist, auto-seed defaults
   useEffect(() => {
-    fetch(`/api/households/${householdId}/categories`)
-      .then((res) => res.ok ? res.json() : { categories: [] })
-      .then((data) => {
+    async function loadCategories() {
+      try {
+        const res = await fetch(`/api/households/${householdId}/categories`);
+        const data = res.ok ? await res.json() : { categories: [] };
         const tree = data.categories || [];
-        // Flatten the tree: parents + children
-        const flat: Category[] = [];
-        for (const node of tree) {
-          const { children, ...parent } = node;
-          flat.push(parent as Category);
-          if (Array.isArray(children)) {
-            for (const child of children) {
-              const { children: _, ...c } = child;
-              flat.push(c as Category);
-            }
+
+        // If no categories exist, seed defaults automatically
+        if (tree.length === 0) {
+          const seedRes = await fetch(`/api/households/${householdId}/categories/seed`, { method: 'POST' });
+          if (seedRes.ok) {
+            // Re-fetch after seeding
+            const res2 = await fetch(`/api/households/${householdId}/categories`);
+            const data2 = res2.ok ? await res2.json() : { categories: [] };
+            const tree2 = data2.categories || [];
+            setCategories(flattenTree(tree2));
+            setCategoriesLoaded(true);
+            return;
           }
         }
-        setCategories(flat);
-      })
-      .catch(() => {});
+
+        setCategories(flattenTree(tree));
+      } finally {
+        setCategoriesLoaded(true);
+      }
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function flattenTree(tree: any[]): Category[] {
+      const flat: Category[] = [];
+      for (const node of tree) {
+        const { children, ...parent } = node;
+        flat.push(parent as Category);
+        if (Array.isArray(children)) {
+          for (const child of children) {
+            const { children: _, ...c } = child;
+            flat.push(c as Category);
+          }
+        }
+      }
+      return flat;
+    }
+
+    loadCategories();
   }, [householdId]);
 
   const totalPages = Math.ceil(total / limit);
